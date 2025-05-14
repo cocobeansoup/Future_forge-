@@ -3,6 +3,7 @@ import { Link, useParams } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import ModelAIChat from "@/components/ModelAIChat";
 
 // Enhanced 3D modeling workspace component
 export default function ModelWorkspace() {
@@ -528,193 +529,315 @@ export default function ModelWorkspace() {
   };
   
   return (
-    <div className="container mx-auto py-6 px-4">
-      <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">3D Modeling Workspace</h1>
-          <p className="text-gray-600">Create and visualize your invention</p>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
+      {/* Top Header Bar (Blender-style) */}
+      <header className="bg-gray-800 dark:bg-gray-950 text-white py-2 px-4 flex items-center justify-between shadow-md">
+        <div className="flex items-center">
+          <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">Future Forge Workspace</h1>
         </div>
-        <div className="mt-4 md:mt-0 flex flex-wrap gap-3">
-          <button 
-            onClick={() => setShowAIPanel(!showAIPanel)}
-            className={`px-4 py-2 text-white rounded ${showAIPanel ? 'bg-purple-700 hover:bg-purple-800' : 'bg-purple-600 hover:bg-purple-700'}`}
-          >
-            {showAIPanel ? 'Hide AI Assistant' : 'Show AI Assistant'}
-          </button>
+        
+        <div className="flex items-center space-x-2">
+          <div className="relative group">
+            <button className="bg-gray-700 dark:bg-gray-800 hover:bg-blue-600 dark:hover:bg-blue-700 rounded px-3 py-1.5 text-sm transition-colors">
+              File
+            </button>
+            <div className="absolute hidden group-hover:block right-0 mt-1 bg-gray-700 dark:bg-gray-800 shadow-lg rounded-md overflow-hidden z-50 w-40">
+              <button 
+                onClick={exportModel}
+                className="w-full text-left px-4 py-2 hover:bg-gray-600 dark:hover:bg-gray-700 text-sm"
+              >
+                Export Model
+              </button>
+              <button 
+                className="w-full text-left px-4 py-2 hover:bg-gray-600 dark:hover:bg-gray-700 text-sm"
+              >
+                Save Project
+              </button>
+            </div>
+          </div>
+          
           <Link to="/ai-assistant">
-            <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-              Get AI Suggestions
+            <button className="bg-purple-600 hover:bg-purple-700 rounded px-3 py-1.5 text-sm">
+              AI Suite
             </button>
           </Link>
-          <button 
-            onClick={exportModel} 
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Export Model
-          </button>
+          
+          <div className="bg-gray-700 dark:bg-gray-800 rounded px-3 py-1.5 flex items-center">
+            <span className="text-sm mr-2">View:</span>
+            <div className="bg-gray-900 rounded-full p-0.5 flex">
+              <button
+                className={`px-2 py-0.5 rounded-full text-xs ${viewMode === '2d' ? 'bg-blue-600' : 'bg-gray-800'}`}
+                onClick={() => setViewMode('2d')}
+              >
+                2D
+              </button>
+              <button
+                className={`px-2 py-0.5 rounded-full text-xs ${viewMode === '3d' ? 'bg-blue-600' : 'bg-gray-800'}`}
+                onClick={() => setViewMode('3d')}
+              >
+                3D
+              </button>
+            </div>
+          </div>
         </div>
       </header>
       
-      {/* Model info inputs */}
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block mb-1 font-medium">Model Name</label>
-          <input
-            type="text"
-            value={modelName}
-            onChange={(e) => setModelName(e.target.value)}
-            className="px-3 py-2 border rounded w-full"
-          />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Description</label>
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="px-3 py-2 border rounded w-full"
-            placeholder="Briefly describe your invention..."
-          />
-        </div>
-      </div>
-      
-      {/* View toggle */}
-      <div className="mb-4 flex items-center space-x-4">
-        <label className="font-medium">View Mode:</label>
-        <div className="bg-gray-200 rounded-full p-1 flex">
-          <button
-            className={`px-4 py-1 rounded-full text-sm ${viewMode === '2d' ? 'bg-white shadow-sm' : ''}`}
-            onClick={() => setViewMode('2d')}
-          >
-            2D View
-          </button>
-          <button
-            className={`px-4 py-1 rounded-full text-sm ${viewMode === '3d' ? 'bg-white shadow-sm' : ''}`}
-            onClick={() => setViewMode('3d')}
-          >
-            3D View
-          </button>
+      {/* Model info inputs - fixed below header */}
+      <div className="bg-gray-200 dark:bg-gray-800 p-2 border-b border-gray-300 dark:border-gray-700">
+        <div className="container mx-auto flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+          <div className="flex-1">
+            <div className="flex items-center">
+              <label className="block mr-2 text-sm font-medium dark:text-gray-300">Model:</label>
+              <input
+                type="text"
+                value={modelName}
+                onChange={(e) => setModelName(e.target.value)}
+                className="px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded flex-1 dark:text-white"
+              />
+            </div>
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center">
+              <label className="block mr-2 text-sm font-medium dark:text-gray-300">Description:</label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded flex-1 dark:text-white"
+                placeholder="Briefly describe your invention..."
+              />
+            </div>
+          </div>
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Tools Panel */}
-        <div className="bg-gray-100 p-4 rounded">
-          <h2 className="text-xl font-semibold mb-4">Tools</h2>
-          
-          <div className="space-y-3">
+      {/* Main workspace area with responsive layout */}
+      <div className="flex-grow flex flex-col md:flex-row">
+        {/* Mobile toolbar - visible only on small screens */}
+        <div className="md:hidden bg-gray-800 p-2 flex space-x-2 overflow-x-auto">
+          <button 
+            onClick={() => setSelectedTool('select')}
+            className={`flex-shrink-0 p-2 rounded-md ${selectedTool === 'select' ? 'bg-blue-600' : 'bg-gray-700'}`}
+          >
+            <svg className="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+            </svg>
+          </button>
+          <button 
+            onClick={() => setSelectedTool('move')}
+            className={`flex-shrink-0 p-2 rounded-md ${selectedTool === 'move' ? 'bg-blue-600' : 'bg-gray-700'}`}
+          >
+            <svg className="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+          </button>
+          <button 
+            onClick={() => setSelectedTool('rotate')}
+            className={`flex-shrink-0 p-2 rounded-md ${selectedTool === 'rotate' ? 'bg-blue-600' : 'bg-gray-700'}`}
+          >
+            <svg className="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+          <button 
+            onClick={() => setSelectedTool('scale')}
+            className={`flex-shrink-0 p-2 rounded-md ${selectedTool === 'scale' ? 'bg-blue-600' : 'bg-gray-700'}`}
+          >
+            <svg className="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+          </button>
+          <div className="h-6 border-r border-gray-600 mx-1"></div>
+          <button 
+            onClick={() => addShape('cube')}
+            className="flex-shrink-0 p-2 bg-gray-700 rounded-md"
+          >
+            <svg className="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          </button>
+          <button 
+            onClick={() => addShape('cylinder')}
+            className="flex-shrink-0 p-2 bg-gray-700 rounded-md"
+          >
+            <svg className="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </button>
+          <button 
+            onClick={() => addShape('sphere')}
+            className="flex-shrink-0 p-2 bg-gray-700 rounded-md"
+          >
+            <svg className="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <circle cx="12" cy="12" r="10" strokeWidth={2} />
+            </svg>
+          </button>
+          <button 
+            onClick={() => addShape('cone')}
+            className="flex-shrink-0 p-2 bg-gray-700 rounded-md"
+          >
+            <svg className="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
+          {selectedShape !== null && (
             <button 
-              onClick={() => setSelectedTool('select')}
-              className={`w-full px-3 py-2 text-left rounded ${selectedTool === 'select' ? 'bg-blue-100 border-l-4 border-blue-600' : 'bg-white'}`}
+              onClick={deleteSelectedShape}
+              className="flex-shrink-0 p-2 bg-red-600 rounded-md"
             >
-              Select Tool
+              <svg className="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
             </button>
-            <button 
-              onClick={() => setSelectedTool('move')}
-              className={`w-full px-3 py-2 text-left rounded ${selectedTool === 'move' ? 'bg-blue-100 border-l-4 border-blue-600' : 'bg-white'}`}
-            >
-              Move Tool
-            </button>
-            <button 
-              onClick={() => setSelectedTool('rotate')}
-              className={`w-full px-3 py-2 text-left rounded ${selectedTool === 'rotate' ? 'bg-blue-100 border-l-4 border-blue-600' : 'bg-white'}`}
-            >
-              Rotate Tool
-            </button>
-            <button 
-              onClick={() => setSelectedTool('scale')}
-              className={`w-full px-3 py-2 text-left rounded ${selectedTool === 'scale' ? 'bg-blue-100 border-l-4 border-blue-600' : 'bg-white'}`}
-            >
-              Scale Tool
-            </button>
+          )}
+        </div>
+
+        {/* Desktop Tools Panel - only visible on md and larger */}
+        <div className="hidden md:block md:w-64 bg-gray-200 dark:bg-gray-800 overflow-y-auto">
+          <div className="p-4">
+            <h2 className="text-lg font-semibold mb-4 dark:text-white">Tools</h2>
             
-            <hr className="my-4" />
-            <h3 className="font-medium mb-2">Add Shapes</h3>
-            
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
               <button 
-                onClick={() => addShape('cube')}
-                className="px-3 py-2 bg-white rounded hover:bg-gray-200"
+                onClick={() => setSelectedTool('select')}
+                className={`w-full px-3 py-2 text-left rounded flex items-center ${selectedTool === 'select' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-200'}`}
               >
-                Cube
+                <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                </svg>
+                Select Tool
               </button>
               <button 
-                onClick={() => addShape('cylinder')}
-                className="px-3 py-2 bg-white rounded hover:bg-gray-200"
+                onClick={() => setSelectedTool('move')}
+                className={`w-full px-3 py-2 text-left rounded flex items-center ${selectedTool === 'move' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-200'}`}
               >
-                Cylinder
+                <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                Move Tool
               </button>
               <button 
-                onClick={() => addShape('sphere')}
-                className="px-3 py-2 bg-white rounded hover:bg-gray-200"
+                onClick={() => setSelectedTool('rotate')}
+                className={`w-full px-3 py-2 text-left rounded flex items-center ${selectedTool === 'rotate' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-200'}`}
               >
-                Sphere
+                <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Rotate Tool
               </button>
               <button 
-                onClick={() => addShape('cone')}
-                className="px-3 py-2 bg-white rounded hover:bg-gray-200"
+                onClick={() => setSelectedTool('scale')}
+                className={`w-full px-3 py-2 text-left rounded flex items-center ${selectedTool === 'scale' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-200'}`}
               >
-                Cone
+                <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                Scale Tool
               </button>
+              
+              <div className="h-px bg-gray-300 dark:bg-gray-600 my-4"></div>
+              <h3 className="font-medium mb-2 dark:text-white">Add Shapes</h3>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <button 
+                  onClick={() => addShape('cube')}
+                  className="flex flex-col items-center p-2 bg-gray-100 dark:bg-gray-700 rounded hover:bg-blue-50 dark:hover:bg-gray-600"
+                >
+                  <svg className="w-6 h-6 mb-1 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  <span className="text-xs dark:text-gray-300">Cube</span>
+                </button>
+                <button 
+                  onClick={() => addShape('cylinder')}
+                  className="flex flex-col items-center p-2 bg-gray-100 dark:bg-gray-700 rounded hover:bg-blue-50 dark:hover:bg-gray-600"
+                >
+                  <svg className="w-6 h-6 mb-1 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="text-xs dark:text-gray-300">Cylinder</span>
+                </button>
+                <button 
+                  onClick={() => addShape('sphere')}
+                  className="flex flex-col items-center p-2 bg-gray-100 dark:bg-gray-700 rounded hover:bg-blue-50 dark:hover:bg-gray-600"
+                >
+                  <svg className="w-6 h-6 mb-1 text-purple-600 dark:text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" strokeWidth={2} />
+                  </svg>
+                  <span className="text-xs dark:text-gray-300">Sphere</span>
+                </button>
+                <button 
+                  onClick={() => addShape('cone')}
+                  className="flex flex-col items-center p-2 bg-gray-100 dark:bg-gray-700 rounded hover:bg-blue-50 dark:hover:bg-gray-600"
+                >
+                  <svg className="w-6 h-6 mb-1 text-orange-600 dark:text-orange-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                  <span className="text-xs dark:text-gray-300">Cone</span>
+                </button>
+              </div>
+              
+              {selectedShape !== null && (
+                <div className="mt-4">
+                  <h3 className="font-medium mb-2 dark:text-white">Actions</h3>
+                  <button 
+                    onClick={deleteSelectedShape}
+                    className="w-full px-3 py-2 flex items-center justify-center bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded hover:bg-red-200 dark:hover:bg-red-800/30"
+                  >
+                    <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete Selected Shape
+                  </button>
+                </div>
+              )}
             </div>
             
-            {selectedShape !== null && (
-              <div className="mt-4">
-                <h3 className="font-medium mb-2">Actions</h3>
-                <button 
-                  onClick={deleteSelectedShape}
-                  className="w-full px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100"
-                >
-                  Delete Selected Shape
-                </button>
+            {/* Tips section */}
+            {showTips && (
+              <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-medium dark:text-white">Quick Tips</h3>
+                  <button 
+                    onClick={() => setShowTips(false)}
+                    className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  >
+                    Hide
+                  </button>
+                </div>
+                <ul className="text-sm space-y-2 text-gray-700 dark:text-gray-300">
+                  <li>• Click a shape to select it</li>
+                  <li>• Use the tools to manipulate shapes</li>
+                  <li>• Combine simple shapes to create complex models</li>
+                  <li>• Ask the AI assistant for guidance</li>
+                  <li>• Export when you're ready to save your work</li>
+                </ul>
               </div>
             )}
           </div>
-          
-          {/* Tips section */}
-          {showTips && (
-            <div className="mt-6 p-3 bg-blue-50 rounded">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-medium">Quick Tips</h3>
-                <button 
-                  onClick={() => setShowTips(false)}
-                  className="text-sm text-gray-500 hover:text-gray-700"
-                >
-                  Hide
-                </button>
-              </div>
-              <ul className="text-sm space-y-2">
-                <li>• Click a shape to select it</li>
-                <li>• Use the tools to manipulate shapes</li>
-                <li>• Combine simple shapes to create complex models</li>
-                <li>• Ask the AI assistant for guidance</li>
-                <li>• Export when you're ready to save your work</li>
-              </ul>
-            </div>
-          )}
         </div>
         
         {/* Canvas Workspace */}
-        <div className="md:col-span-3 bg-white border rounded relative min-h-[500px]">
+        <div className="flex-grow bg-white dark:bg-gray-700 relative">
           {loading ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-              <p className="ml-3 text-lg">Loading workspace...</p>
+              <div className="animate-spin w-12 h-12 border-4 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full"></div>
+              <p className="ml-3 text-lg dark:text-white">Loading workspace...</p>
             </div>
           ) : (
             <canvas 
               ref={canvasRef}
               width={800}
               height={500}
-              className="w-full h-full"
-              style={{ backgroundColor: '#f8f9fa' }}
+              className="w-full h-full min-h-[400px] md:min-h-[600px]"
+              style={{ backgroundColor: viewMode === '3d' ? '#1e293b' : '#f8f9fa' }}
               onClick={handleCanvasClick}
             />
           )}
           
           {/* 3D view message */}
           {viewMode === '3d' && (
-            <div className="absolute top-2 left-2 right-2 bg-yellow-50 border border-yellow-200 p-3 rounded-md">
+            <div className="absolute top-2 left-2 right-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 p-3 rounded-md text-sm dark:text-yellow-100">
               <p className="text-sm text-yellow-800">
                 Note: Full 3D view requires WebGL implementation. For this demo, we're using a 2D canvas with isometric-style rendering.
               </p>
@@ -874,88 +997,35 @@ export default function ModelWorkspace() {
         )}
       </div>
       
-      {/* AI Panel (conditionally shown) */}
-      {showAIPanel && (
-        <div className="mt-6 bg-purple-50 p-4 rounded-lg border border-purple-200">
-          <h2 className="text-xl font-semibold mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      {/* AI Panel - Always shown, using ModelAIChat component */}
+      <div className="mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold dark:text-white flex items-center">
+            <svg className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             AI Modeling Assistant
           </h2>
-          
-          <div className="bg-white rounded-lg p-4 mb-4 h-48 overflow-y-auto">
-            {aiHistory.length === 0 && !aiResponse ? (
-              <div className="text-gray-500 italic text-center py-8">
-                Ask the AI assistant for modeling advice, material suggestions, or manufacturing guidance
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Show conversation history */}
-                {aiHistory.map((item, index) => (
-                  <div key={index}>
-                    <div className="bg-blue-50 p-2 rounded-lg mb-2">
-                      <p className="font-medium">You:</p>
-                      <p>{item.prompt}</p>
-                    </div>
-                    <div className="bg-purple-50 p-2 rounded-lg">
-                      <p className="font-medium">AI Assistant:</p>
-                      <p className="whitespace-pre-wrap">{item.response}</p>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* Show current response if available */}
-                {aiResponse && aiHistory.length === 0 && (
-                  <div>
-                    <div className="bg-blue-50 p-2 rounded-lg mb-2">
-                      <p className="font-medium">You:</p>
-                      <p>{aiPrompt}</p>
-                    </div>
-                    <div className="bg-purple-50 p-2 rounded-lg">
-                      <p className="font-medium">AI Assistant:</p>
-                      <p className="whitespace-pre-wrap">{aiResponse}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          <div className="flex">
-            <input
-              type="text"
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="Ask about materials, design optimization, manufacturing..."
-              className="flex-1 px-3 py-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-purple-500"
-              disabled={isAiLoading}
-            />
-            <button
-              onClick={requestAIFeedback}
-              disabled={isAiLoading}
-              className={`px-4 py-2 bg-purple-600 text-white rounded-r hover:bg-purple-700 flex items-center 
-              ${isAiLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
-            >
-              {isAiLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Processing
-                </>
-              ) : (
-                'Ask AI'
-              )}
-            </button>
-          </div>
-          
-          <div className="mt-3 text-xs text-gray-500">
-            <p>AI Assistant can provide modeling advice, material recommendations, and manufacturing guidance based on your design.</p>
+          <div className="flex space-x-3">
+            <Link to="/ai-assistant">
+              <button className="px-4 py-2 bg-purple-600 dark:bg-purple-700 text-white rounded hover:bg-purple-700 dark:hover:bg-purple-800 text-sm transition-colors">
+                Full AI Suite
+              </button>
+            </Link>
           </div>
         </div>
-      )}
+        
+        {/* ModelAIChat component for improved AI interaction */}
+        <ModelAIChat 
+          modelName={modelName}
+          modelDescription={description}
+          modelComponents={shapes.map(shape => ({
+            type: shape.type,
+            dimensions: `${shape.width}x${shape.height}x${shape.depth}`,
+            material: shape.material
+          }))}
+        />
+      </div>
     </div>
   );
 }
