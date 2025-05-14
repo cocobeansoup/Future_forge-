@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { initializeDatabase } from "./init-db";
 
 const app = express();
 app.use(express.json());
@@ -37,6 +38,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize database with default values
+  try {
+    await initializeDatabase();
+    log("Database initialized with default values");
+  } catch (error) {
+    console.error("Failed to initialize database:", error);
+    // Continue starting the server even if initialization fails
+  }
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -65,6 +75,7 @@ app.use((req, res, next) => {
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`🚀 Future Forge platform serving on port ${port}`);
+    log(`💡 Visit http://localhost:${port} to access the application`);
   });
 })();

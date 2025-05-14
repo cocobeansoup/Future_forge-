@@ -1,8 +1,7 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useLocation } from "wouter";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "./use-toast";
 
 interface User {
   id: number;
@@ -33,105 +32,130 @@ interface RegisterData {
 }
 
 export function useAuth() {
+  const [user, setUser] = useState<User | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
-  
-  // Check if token exists in localStorage
-  const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem("auth_token");
-  });
-  
-  // Fetch user data if token exists
-  const { data: user, error, isLoading, refetch } = useQuery<User>({
-    queryKey: ["/api/auth/user"],
-    enabled: !!token,
-    retry: false,
-  });
 
+  // Check if user is logged in on mount
   useEffect(() => {
-    // If error is 401 (unauthorized), clear token
-    if (error && (error as any).status === 401) {
-      logout();
-    }
-  }, [error]);
-  
+    const checkAuth = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch("/api/auth/user");
+        
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error("Error checking authentication:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   // Login mutation
-  const login = useMutation({
+  const loginMutation = useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
-      const response = await apiRequest("/api/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         body: JSON.stringify(credentials),
         headers: {
           "Content-Type": "application/json",
         },
       });
-      
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Login failed");
+      }
+
       return response.json();
     },
     onSuccess: (data) => {
-      localStorage.setItem("auth_token", data.token);
-      setToken(data.token);
-      refetch();
+      setUser(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
-        title: "Success",
-        description: "You have been logged in successfully",
+        title: "Login Successful",
+        description: `Welcome back, ${data.name || data.username}!`,
       });
-      setLocation("/");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: "Failed to login. Please check your credentials.",
+        title: "Login Failed",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
-  
+
   // Register mutation
-  const register = useMutation({
+  const registerMutation = useMutation({
     mutationFn: async (data: RegisterData) => {
-      const response = await apiRequest("/api/auth/register", {
+      const response = await fetch("/api/auth/register", {
         method: "POST",
         body: JSON.stringify(data),
         headers: {
           "Content-Type": "application/json",
         },
       });
-      
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Registration failed");
+      }
+
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setUser(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
-        title: "Success",
-        description: "Account created successfully. Please log in.",
+        title: "Registration Successful",
+        description: `Welcome to Future Forge, ${data.name || data.username}!`,
       });
-      setLocation("/login");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: "Failed to create account. Please try again.",
+        title: "Registration Failed",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
-  
+
   // Logout function
-  const logout = () => {
-    localStorage.removeItem("auth_token");
-    setToken(null);
-    queryClient.clear();
-    setLocation("/login");
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout");
+      setUser(undefined);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+    } catch (error) {
+      console.error("Error logging out:", error);
+      toast({
+        title: "Logout Error",
+        description: "An error occurred while logging out.",
+        variant: "destructive",
+      });
+    }
   };
-  
+
   return {
     user,
     isLoading,
     isAuthenticated: !!user,
-    login: login.mutate,
-    isLoginLoading: login.isPending,
-    register: register.mutate,
-    isRegisterLoading: register.isPending,
+    login: loginMutation.mutate,
+    isLoginLoading: loginMutation.isPending,
+    register: registerMutation.mutate,
+    isRegisterLoading: registerMutation.isPending,
     logout,
   };
 }

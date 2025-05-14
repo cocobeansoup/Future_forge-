@@ -376,9 +376,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create AI feedback for an invention
   app.post("/api/ai-feedback", async (req: Request, res: Response) => {
     try {
-      const validatedData = insertAiFeedbackSchema.parse(req.body);
-      const feedback = await storage.createAIFeedback(validatedData);
-      res.status(201).json(feedback);
+      const { inventionId } = req.body;
+      
+      if (!inventionId) {
+        return res.status(400).json({ message: "Invention ID is required" });
+      }
+      
+      // Get the invention details to generate feedback on
+      const invention = await storage.getInvention(inventionId);
+      
+      if (!invention) {
+        return res.status(404).json({ message: "Invention not found" });
+      }
+      
+      // Import the AI service
+      const { aiService } = await import("./services/ai-service");
+      
+      // Generate AI feedback using OpenAI
+      const aiFeedback = await aiService.generateInventionFeedback({
+        title: invention.title,
+        description: invention.description,
+        category: invention.category,
+        tags: invention.tags ? invention.tags.split(",").map(tag => tag.trim()) : undefined
+      });
+      
+      // Save the feedback to the database
+      const feedbackData = {
+        inventionId,
+        feedback: aiFeedback.feedback || "Analysis of your invention",
+        suggestedImprovements: JSON.stringify(aiFeedback.suggestedImprovements || {}),
+        marketAnalysis: JSON.stringify(aiFeedback.marketAnalysis || {})
+      };
+      
+      const savedFeedback = await storage.createAIFeedback(feedbackData);
+      
+      res.status(201).json({
+        ...savedFeedback,
+        aiResponse: aiFeedback
+      });
     } catch (error) {
       if (error instanceof ZodError) {
         const validationError = fromZodError(error);
@@ -474,6 +509,329 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get dashboard metrics
+  // Auction routes
+  app.get("/api/auctions", async (req: Request, res: Response) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const auctions = await storage.getAuctions(status);
+      
+      // Get associated inventions and bids
+      const auctionsWithDetails = await Promise.all(
+        auctions.map(async (auction) => {
+          const invention = await storage.getInvention(auction.inventionId);
+          const highestBid = await storage.getHighestBid(auction.id);
+          const bids = await storage.getBids(auction.id);
+          
+          return {
+            ...auction,
+            invention,
+            highestBid,
+            bidCount: bids.length
+          };
+        })
+      );
+      
+      res.json(auctionsWithDetails);
+    } catch (error) {
+      console.error("Error fetching auctions:", error);
+      res.status(500).json({ message: "Failed to fetch auctions" });
+    }
+  });
+
+  app.get("/api/auctions/:id", async (req: Request, res: Response) => {
+    try {
+      const auctionId = parseInt(req.params.id);
+      const auction = await storage.getAuction(auctionId);
+      
+      if (!auction) {
+        return res.status(404).json({ message: "Auction not found" });
+      }
+      
+      // Get associated invention, bids, and bidders
+      const invention = await storage.getInvention(auction.inventionId);
+      const bids = await storage.getBids(auction.id);
+      
+      // Get bidder details for each bid
+      const bidsWithBidders = await Promise.all(
+        bids.map(async (bid) => {
+          const bidder = await storage.getUser(bid.bidderId);
+          return {
+            ...bid,
+            bidder: bidder ? {
+              id: bidder.id,
+              username: bidder.username,
+              name: bidder.name,
+              avatar: bidder.avatar
+            } : null
+          };
+        })
+      );
+      
+      // Get winner info if completed
+      let winner;
+      if (auction.status === "completed" && auction.winnerId) {
+        winner = await storage.getUser(auction.winnerId);
+      }
+      
+      res.json({
+        ...auction,
+        invention,
+        bids: bidsWithBidders,
+        winner: winner ? {
+          id: winner.id,
+          username: winner.username,
+          name: winner.name,
+          avatar: winner.avatar
+        } : null
+      });
+    } catch (error) {
+      console.error("Error fetching auction:", error);
+      res.status(500).json({ message: "Failed to fetch auction details" });
+    }
+  });
+
+  app.post("/api/auctions", async (req: Request, res: Response) => {
+    try {
+      // Validate request
+      if (!req.body.inventionId || !req.body.startingPrice || !req.body.endDate) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Check if user is authenticated
+      if (!req.body.userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Check if invention exists and belongs to the user
+      const invention = await storage.getInvention(req.body.inventionId);
+      if (!invention) {
+        return res.status(404).json({ message: "Invention not found" });
+      }
+      
+      if (invention.inventorId !== req.body.userId) {
+        return res.status(403).json({ message: "You don't have permission to auction this invention" });
+      }
+      
+      // Check if the invention is already in an auction
+      if (invention.inAuction) {
+        return res.status(400).json({ message: "This invention is already in an active auction" });
+      }
+      
+      // Create auction
+      const auction = await storage.createAuction({
+        inventionId: req.body.inventionId,
+        startingPrice: req.body.startingPrice,
+        reservePrice: req.body.reservePrice,
+        endDate: new Date(req.body.endDate),
+        status: "active"
+      });
+      
+      res.status(201).json(auction);
+    } catch (error) {
+      console.error("Error creating auction:", error);
+      res.status(500).json({ message: "Failed to create auction" });
+    }
+  });
+
+  app.post("/api/auctions/:id/bids", async (req: Request, res: Response) => {
+    try {
+      const auctionId = parseInt(req.params.id);
+      
+      // Validate request
+      if (!req.body.bidderId || !req.body.amount) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Check if auction exists and is active
+      const auction = await storage.getAuction(auctionId);
+      if (!auction) {
+        return res.status(404).json({ message: "Auction not found" });
+      }
+      
+      if (auction.status !== "active") {
+        return res.status(400).json({ message: "This auction is no longer active" });
+      }
+      
+      // Check if auction end date has passed
+      if (new Date(auction.endDate) < new Date()) {
+        // End the auction automatically
+        await storage.endAuction(auction.id);
+        return res.status(400).json({ message: "This auction has ended" });
+      }
+      
+      // Check if bid amount is higher than current price
+      if (Number(req.body.amount) <= Number(auction.currentPrice)) {
+        return res.status(400).json({ 
+          message: "Bid must be higher than current price",
+          currentPrice: auction.currentPrice
+        });
+      }
+      
+      // Create the bid
+      const bid = await storage.createBid({
+        auctionId,
+        bidderId: req.body.bidderId,
+        amount: req.body.amount
+      });
+      
+      res.status(201).json(bid);
+    } catch (error) {
+      console.error("Error placing bid:", error);
+      res.status(500).json({ message: "Failed to place bid" });
+    }
+  });
+
+  app.post("/api/auctions/:id/end", async (req: Request, res: Response) => {
+    try {
+      const auctionId = parseInt(req.params.id);
+      
+      // Check if auction exists
+      const auction = await storage.getAuction(auctionId);
+      if (!auction) {
+        return res.status(404).json({ message: "Auction not found" });
+      }
+      
+      // Get highest bid
+      const highestBid = await storage.getHighestBid(auctionId);
+      const winnerId = highestBid ? highestBid.bidderId : undefined;
+      
+      // End the auction
+      const endedAuction = await storage.endAuction(auctionId, winnerId);
+      
+      res.json(endedAuction);
+    } catch (error) {
+      console.error("Error ending auction:", error);
+      res.status(500).json({ message: "Failed to end auction" });
+    }
+  });
+
+  // 3D Model routes
+  app.post("/api/inventions/:id/models", async (req: Request, res: Response) => {
+    try {
+      const inventionId = parseInt(req.params.id);
+      
+      // Check if invention exists
+      const invention = await storage.getInvention(inventionId);
+      if (!invention) {
+        return res.status(404).json({ message: "Invention not found" });
+      }
+      
+      // Add model to the invention
+      const models = invention.models3d || [];
+      models.push(req.body.modelUrl);
+      
+      const updatedInvention = await storage.updateInvention(inventionId, {
+        models3d: models
+      });
+      
+      res.json(updatedInvention);
+    } catch (error) {
+      console.error("Error adding 3D model:", error);
+      res.status(500).json({ message: "Failed to add 3D model" });
+    }
+  });
+
+  app.post("/api/ai/generate-model", async (req: Request, res: Response) => {
+    try {
+      // Check if the request has a proper description
+      if (!req.body.description || req.body.description.length < 10) {
+        return res.status(400).json({ 
+          message: "Please provide a detailed description of at least 10 characters"
+        });
+      }
+      
+      // Import the AI service
+      const { aiService } = await import("./services/ai-service");
+      
+      // Generate 3D model suggestions using OpenAI
+      const modelSuggestions = await aiService.generate3DModelSuggestions(req.body.description);
+      
+      // Create AI feedback record
+      if (req.body.inventionId) {
+        await storage.createAIFeedback({
+          inventionId: req.body.inventionId,
+          feedback: "3D model generation from description",
+          suggestedImprovements: JSON.stringify(modelSuggestions)
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: "3D model suggestions generated successfully",
+        suggestions: modelSuggestions
+      });
+    } catch (error) {
+      console.error("Error generating 3D model suggestions:", error);
+      res.status(500).json({ message: "Failed to generate 3D model suggestions" });
+    }
+  });
+  
+  // Generate market analysis using AI
+  app.post("/api/ai/market-analysis", async (req: Request, res: Response) => {
+    try {
+      const { title, description, category, tags } = req.body;
+      
+      // Validate request
+      if (!title || !description || !category) {
+        return res.status(400).json({ 
+          message: "Please provide title, description, and category"
+        });
+      }
+      
+      // Import the AI service
+      const { aiService } = await import("./services/ai-service");
+      
+      // Generate market analysis using OpenAI
+      const analysis = await aiService.generateMarketAnalysis({
+        title,
+        description,
+        category,
+        tags
+      });
+      
+      res.json({
+        success: true,
+        message: "Market analysis generated successfully",
+        analysis
+      });
+    } catch (error) {
+      console.error("Error generating market analysis:", error);
+      res.status(500).json({ message: "Failed to generate market analysis" });
+    }
+  });
+  
+  // Platform fees routes
+  app.get("/api/platform-fees", async (req: Request, res: Response) => {
+    try {
+      const fees = await storage.getAllPlatformFees();
+      res.json(fees);
+    } catch (error) {
+      console.error("Error fetching platform fees:", error);
+      res.status(500).json({ message: "Failed to fetch platform fees" });
+    }
+  });
+
+  app.post("/api/platform-fees", async (req: Request, res: Response) => {
+    try {
+      // Validate request
+      if (!req.body.feeType || req.body.percentage === undefined) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Create platform fee
+      const fee = await storage.createPlatformFee({
+        feeType: req.body.feeType,
+        percentage: req.body.percentage,
+        isActive: true
+      });
+      
+      res.status(201).json(fee);
+    } catch (error) {
+      console.error("Error creating platform fee:", error);
+      res.status(500).json({ message: "Failed to create platform fee" });
+    }
+  });
+
   app.get("/api/dashboard-metrics", async (req: Request, res: Response) => {
     try {
       const inventions = await storage.getInventions();

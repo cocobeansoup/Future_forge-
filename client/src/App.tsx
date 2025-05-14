@@ -1,63 +1,36 @@
-import { Switch, Route } from "wouter";
+import { Route, Switch } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/queryClient";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/toaster";
-import NotFound from "@/pages/not-found";
-import Home from "@/pages/home";
-import Dashboard from "@/pages/dashboard";
-import Inventions from "@/pages/inventions";
-import InventionDetail from "@/pages/invention-detail";
-import CreateInvention from "@/pages/create-invention";
-import Investments from "@/pages/investments";
-import Profile from "@/pages/profile";
-import Login from "@/pages/login";
-import Register from "@/pages/register";
-import Sidebar from "@/components/layout/sidebar";
-import Topbar from "@/components/layout/topbar";
-import MobileNavigation from "@/components/layout/mobile-navigation";
-import { useState } from "react";
-import AIAssistant from "@/pages/ai-assistant";
+import { queryClient } from "@/lib/queryClient";
+import Home from "./pages/home";
+import AIAssistant from "./pages/ai-assistant";
 
-function App() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(prev => !prev);
-  };
-
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <div className="flex h-screen">
-          <Sidebar />
-          
-          <main className="flex-1 overflow-auto">
-            <Topbar onMenuClick={toggleMobileMenu} />
-            
-            <div className="p-4 md:p-8">
-              <Switch>
-                <Route path="/" component={Home} />
-                <Route path="/dashboard" component={Dashboard} />
-                <Route path="/inventions" component={Inventions} />
-                <Route path="/inventions/create" component={CreateInvention} />
-                <Route path="/inventions/:id" component={InventionDetail} />
-                <Route path="/investments" component={Investments} />
-                <Route path="/ai-assistant" component={AIAssistant} />
-                <Route path="/profile" component={Profile} />
-                <Route path="/login" component={Login} />
-                <Route path="/register" component={Register} />
-                <Route component={NotFound} />
-              </Switch>
-            </div>
-          </main>
-          
-          <MobileNavigation />
-          <Toaster />
-        </div>
-      </TooltipProvider>
+      <div className="min-h-screen bg-white">
+        <header className="bg-blue-600 text-white">
+          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div className="text-2xl font-bold">Future Forge</div>
+            <nav className="space-x-4">
+              <a href="/" className="hover:text-blue-200">Home</a>
+              <a href="/ai-assistant" className="hover:text-blue-200">AI Assistant</a>
+            </nav>
+          </div>
+        </header>
+        
+        <main>
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/ai-assistant" component={AIAssistant} />
+          </Switch>
+        </main>
+        
+        <footer className="bg-gray-100 py-6 mt-12">
+          <div className="container mx-auto px-4 text-center text-gray-600">
+            <p>&copy; {new Date().getFullYear()} Future Forge. All rights reserved.</p>
+          </div>
+        </footer>
+      </div>
     </QueryClientProvider>
   );
 }
-
-export default App;
