@@ -846,185 +846,225 @@ export default function ModelWorkspace() {
         </div>
       </div>
       
-      {/* Properties Panel */}
-      <div className="mt-6 bg-gray-100 p-4 rounded">
-        <h2 className="text-xl font-semibold mb-4">Properties</h2>
+      {/* Properties Panel - Fixed side panel on desktop, drawer-like panel at bottom on mobile */}
+      <div className="fixed md:static bottom-0 left-0 right-0 md:w-64 bg-gray-100 dark:bg-gray-800 md:border-l border-t md:border-t-0 border-gray-300 dark:border-gray-700 p-3 md:p-4 z-10 max-h-[50vh] md:max-h-full overflow-y-auto md:flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold dark:text-white">Properties</h2>
+          <button className="md:hidden p-1 rounded-full bg-gray-200 dark:bg-gray-700">
+            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+          </button>
+        </div>
         
         {selectedShape === null ? (
-          <p className="text-gray-600">Select an object to edit its properties</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-3">Select an object to edit its properties</p>
         ) : (
-          <div>
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-2 mb-4">
-              <p className="text-blue-700">{shapes[selectedShape].type.charAt(0).toUpperCase() + shapes[selectedShape].type.slice(1)} selected</p>
+          <div className="mt-3">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 dark:border-blue-600 p-2 mb-3">
+              <p className="text-blue-700 dark:text-blue-300 text-sm">{shapes[selectedShape].type.charAt(0).toUpperCase() + shapes[selectedShape].type.slice(1)} selected</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-4">
               <div>
-                <label className="block mb-1 text-sm font-medium">Position</label>
+                <div className="flex items-center mb-1.5">
+                  <span className="inline-block w-4 h-4 mr-1.5 bg-blue-500 dark:bg-blue-600 rounded-sm"></span>
+                  <label className="text-sm font-medium dark:text-white">Position</label>
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-xs text-gray-500">X</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400">X</label>
                     <input 
                       type="number" 
                       value={shapes[selectedShape].x}
                       onChange={(e) => updateShapeProperty('x', parseFloat(e.target.value))} 
-                      className="w-full px-2 py-1 border rounded" 
+                      className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white" 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500">Y</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400">Y</label>
                     <input 
                       type="number" 
                       value={shapes[selectedShape].y}
                       onChange={(e) => updateShapeProperty('y', parseFloat(e.target.value))} 
-                      className="w-full px-2 py-1 border rounded" 
+                      className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white" 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500">Z</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400">Z</label>
                     <input 
                       type="number" 
                       value={shapes[selectedShape].z}
                       onChange={(e) => updateShapeProperty('z', parseFloat(e.target.value))} 
-                      className="w-full px-2 py-1 border rounded" 
+                      className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white" 
                     />
                   </div>
                 </div>
               </div>
               
               <div>
-                <label className="block mb-1 text-sm font-medium">Dimensions</label>
+                <div className="flex items-center mb-1.5">
+                  <span className="inline-block w-4 h-4 mr-1.5 bg-green-500 dark:bg-green-600 rounded-sm"></span>
+                  <label className="text-sm font-medium dark:text-white">Dimensions</label>
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-xs text-gray-500">Width</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400">W</label>
                     <input 
                       type="number" 
                       value={shapes[selectedShape].width}
                       onChange={(e) => updateShapeProperty('width', parseFloat(e.target.value))} 
-                      className="w-full px-2 py-1 border rounded" 
+                      className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white" 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500">Height</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400">H</label>
                     <input 
                       type="number" 
                       value={shapes[selectedShape].height}
                       onChange={(e) => updateShapeProperty('height', parseFloat(e.target.value))} 
-                      className="w-full px-2 py-1 border rounded" 
+                      className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white" 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500">Depth</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400">D</label>
                     <input 
                       type="number" 
                       value={shapes[selectedShape].depth}
                       onChange={(e) => updateShapeProperty('depth', parseFloat(e.target.value))} 
-                      className="w-full px-2 py-1 border rounded" 
+                      className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white" 
                     />
                   </div>
                 </div>
               </div>
               
               <div>
-                <label className="block mb-1 text-sm font-medium">Rotation</label>
+                <div className="flex items-center mb-1.5">
+                  <span className="inline-block w-4 h-4 mr-1.5 bg-purple-500 dark:bg-purple-600 rounded-sm"></span>
+                  <label className="text-sm font-medium dark:text-white">Rotation</label>
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-xs text-gray-500">X°</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400">X°</label>
                     <input 
                       type="number" 
                       value={shapes[selectedShape].rotation.x}
                       onChange={(e) => updateShapeProperty('rotation.x', parseFloat(e.target.value))} 
-                      className="w-full px-2 py-1 border rounded" 
+                      className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white" 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500">Y°</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400">Y°</label>
                     <input 
                       type="number" 
                       value={shapes[selectedShape].rotation.y}
                       onChange={(e) => updateShapeProperty('rotation.y', parseFloat(e.target.value))} 
-                      className="w-full px-2 py-1 border rounded" 
+                      className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white" 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500">Z°</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400">Z°</label>
                     <input 
                       type="number" 
                       value={shapes[selectedShape].rotation.z}
                       onChange={(e) => updateShapeProperty('rotation.z', parseFloat(e.target.value))} 
-                      className="w-full px-2 py-1 border rounded" 
+                      className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white" 
                     />
                   </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              
               <div>
-                <label className="block mb-1 text-sm font-medium">Color</label>
-                <div className="flex items-center space-x-2">
-                  <input 
-                    type="color" 
-                    value={shapes[selectedShape].color}
-                    onChange={(e) => updateShapeProperty('color', e.target.value)} 
-                    className="w-10 h-10 rounded cursor-pointer" 
-                  />
-                  <input 
-                    type="text" 
-                    value={shapes[selectedShape].color}
-                    onChange={(e) => updateShapeProperty('color', e.target.value)} 
-                    className="flex-1 px-2 py-1 border rounded" 
-                  />
+                <div className="flex items-center mb-1.5">
+                  <span className="inline-block w-4 h-4 mr-1.5 bg-red-500 dark:bg-red-600 rounded-sm"></span>
+                  <label className="text-sm font-medium dark:text-white">Appearance</label>
                 </div>
-              </div>
-              <div>
-                <label className="block mb-1 text-sm font-medium">Material</label>
-                <select
-                  value={shapes[selectedShape].material}
-                  onChange={(e) => updateShapeProperty('material', e.target.value)}
-                  className="w-full px-2 py-1 border rounded"
-                >
-                  <option value="plastic">Plastic</option>
-                  <option value="metal">Metal</option>
-                  <option value="wood">Wood</option>
-                  <option value="glass">Glass</option>
-                  <option value="rubber">Rubber</option>
-                  <option value="ceramic">Ceramic</option>
-                </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Color</label>
+                    <div className="flex items-center">
+                      <input 
+                        type="color" 
+                        value={shapes[selectedShape].color}
+                        onChange={(e) => updateShapeProperty('color', e.target.value)} 
+                        className="w-8 h-8 rounded cursor-pointer" 
+                      />
+                      <span className="ml-2 text-xs uppercase dark:text-gray-300">{shapes[selectedShape].color}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Material</label>
+                    <select
+                      value={shapes[selectedShape].material}
+                      onChange={(e) => updateShapeProperty('material', e.target.value)}
+                      className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white"
+                    >
+                      <option value="plastic">Plastic</option>
+                      <option value="metal">Metal</option>
+                      <option value="wood">Wood</option>
+                      <option value="glass">Glass</option>
+                      <option value="rubber">Rubber</option>
+                      <option value="ceramic">Ceramic</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
       </div>
       
-      {/* AI Panel - Always shown, using ModelAIChat component */}
-      <div className="mt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold dark:text-white flex items-center">
-            <svg className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      {/* AI Assistant Panel - Collapsed to bottom corner on mobile, full panel on desktop */}
+      <div className="fixed bottom-0 right-0 md:static md:mt-6 z-20">
+        <div className="md:hidden absolute bottom-4 right-4 shadow-lg">
+          <button
+            onClick={() => setShowAIPanel(!showAIPanel)}
+            className="bg-purple-600 dark:bg-purple-700 text-white rounded-full p-3 shadow-lg hover:bg-purple-700 dark:hover:bg-purple-800 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            AI Modeling Assistant
-          </h2>
-          <div className="flex space-x-3">
-            <Link to="/ai-assistant">
-              <button className="px-4 py-2 bg-purple-600 dark:bg-purple-700 text-white rounded hover:bg-purple-700 dark:hover:bg-purple-800 text-sm transition-colors">
-                Full AI Suite
-              </button>
-            </Link>
-          </div>
+          </button>
         </div>
         
-        {/* ModelAIChat component for improved AI interaction */}
-        <ModelAIChat 
-          modelName={modelName}
-          modelDescription={description}
-          modelComponents={shapes.map(shape => ({
-            type: shape.type,
-            dimensions: `${shape.width}x${shape.height}x${shape.depth}`,
-            material: shape.material
-          }))}
-        />
+        <div className={`${showAIPanel ? 'translate-y-0' : 'translate-y-full'} md:translate-y-0 transition-transform duration-300 fixed bottom-0 left-0 right-0 md:static bg-white dark:bg-gray-800 md:bg-transparent md:dark:bg-transparent rounded-t-xl md:rounded-none shadow-lg md:shadow-none border border-gray-200 dark:border-gray-700 md:border-0 z-30`}>
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 md:border-0 md:px-0">
+            <h2 className="text-lg font-semibold dark:text-white flex items-center">
+              <svg className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              AI Modeling Assistant
+            </h2>
+            <div className="flex space-x-3">
+              <Link to="/ai-assistant" className="hidden md:block">
+                <button className="px-4 py-2 bg-purple-600 dark:bg-purple-700 text-white rounded hover:bg-purple-700 dark:hover:bg-purple-800 text-sm transition-colors">
+                  Full AI Suite
+                </button>
+              </Link>
+              <button 
+                onClick={() => setShowAIPanel(false)} 
+                className="md:hidden p-1 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+              >
+                <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          {/* ModelAIChat component for improved AI interaction */}
+          <div className="p-3 md:p-0 max-h-[400px] md:max-h-none overflow-y-auto">
+            <ModelAIChat 
+              modelName={modelName}
+              modelDescription={description}
+              modelComponents={shapes.map(shape => ({
+                type: shape.type,
+                dimensions: `${shape.width}x${shape.height}x${shape.depth}`,
+                material: shape.material
+              }))}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
