@@ -25,8 +25,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { password, ...userData } = req.body;
       const hashedPassword = await bcrypt.hash(password, 10);
       
+      // Handle inventor trial period - if user is an inventor, give them a 7-day trial
+      let subscriptionData = {};
+      if (userData.isInventor) {
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 7); // 7-day trial
+        
+        subscriptionData = {
+          subscriptionActive: true,
+          subscriptionEndDate: trialEndDate,
+          trialUsed: true
+        };
+      }
+      
       const validatedData = insertUserSchema.parse({
         ...userData,
+        ...subscriptionData,
         password: hashedPassword,
       });
       
@@ -575,6 +589,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting API key:", error);
       res.status(500).json({ message: "Failed to delete API key" });
+    }
+  });
+
+  // Subscription endpoints
+  app.post("/api/subscription/subscribe", async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // If already subscribed, extend by one month
+      let subscriptionEndDate = new Date();
+      if (user.subscriptionActive && user.subscriptionEndDate) {
+        subscriptionEndDate = new Date(user.subscriptionEndDate);
+      }
+      
+      // Add one month
+      subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
+      
+      const updatedUser = await storage.updateUser(userId, {
+        subscriptionActive: true,
+        subscriptionEndDate,
+      });
+      
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update subscription" });
+      }
+      
+      // Don't send the password back
+      const { password, ...userWithoutPassword } = updatedUser;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error subscribing:", error);
+      res.status(500).json({ message: "Failed to subscribe" });
+    }
+  });
+  
+  app.get("/api/subscription/status/:userId", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if subscription has expired
+      if (user.subscriptionActive && user.subscriptionEndDate) {
+        const now = new Date();
+        const endDate = new Date(user.subscriptionEndDate);
+        
+        // If subscription has expired, update the user
+        if (now > endDate) {
+          await storage.updateUser(userId, {
+            subscriptionActive: false,
+          });
+          
+          return res.json({
+            active: false,
+            endDate: null,
+            daysRemaining: 0,
+            onTrial: false
+          });
+        }
+        
+        // Calculate days remaining
+        const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        return res.json({
+          active: true,
+          endDate: user.subscriptionEndDate,
+          daysRemaining,
+          onTrial: user.trialUsed && daysRemaining <= 7
+        });
+      }
+      
+      res.json({
+        active: false,
+        endDate: null,
+        daysRemaining: 0,
+        onTrial: false
+      });
+    } catch (error) {
+      console.error("Error checking subscription status:", error);
+      res.status(500).json({ message: "Failed to check subscription status" });
     }
   });
 
