@@ -78,10 +78,15 @@ export default function Home() {
             </p>
           </div>
           <div className="p-6 border rounded-lg">
-            <h3 className="text-xl font-semibold mb-2">3D Model Generation</h3>
-            <p>
+            <h3 className="text-xl font-semibold mb-2">3D Model Creation</h3>
+            <p className="mb-3">
               Turn your ideas into visual 3D models with AI-guided modeling suggestions.
             </p>
+            <Link to="/model-workspace">
+              <button className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                Open 3D Workspace
+              </button>
+            </Link>
           </div>
           <div className="p-6 border rounded-lg">
             <h3 className="text-xl font-semibold mb-2">Market Analysis</h3>
