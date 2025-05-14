@@ -2,215 +2,495 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
-  insertOpportunitySchema, 
-  insertPipelineStageSchema, 
-  insertRevenueForecastSchema, 
+  insertUserSchema,
+  insertInventionSchema,
+  insertInvestmentSchema,
+  insertAiFeedbackSchema,
+  insertInventionUpdateSchema,
+  insertCommentSchema,
   insertApiKeySchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  // Get all opportunities
-  app.get("/api/opportunities", async (req: Request, res: Response) => {
+  // Register new user
+  app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      const opportunities = await storage.getOpportunities();
-      res.json(opportunities);
-    } catch (error) {
-      console.error("Error getting opportunities:", error);
-      res.status(500).json({ message: "Failed to get opportunities" });
-    }
-  });
-
-  // Get a specific opportunity
-  app.get("/api/opportunities/:id", async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid opportunity ID" });
-      }
-
-      const opportunity = await storage.getOpportunity(id);
-      if (!opportunity) {
-        return res.status(404).json({ message: "Opportunity not found" });
-      }
-
-      res.json(opportunity);
-    } catch (error) {
-      console.error("Error getting opportunity:", error);
-      res.status(500).json({ message: "Failed to get opportunity" });
-    }
-  });
-
-  // Create a new opportunity
-  app.post("/api/opportunities", async (req: Request, res: Response) => {
-    try {
-      const validatedData = insertOpportunitySchema.parse(req.body);
-      const opportunity = await storage.createOpportunity(validatedData);
-      res.status(201).json(opportunity);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.message });
-      }
-      console.error("Error creating opportunity:", error);
-      res.status(500).json({ message: "Failed to create opportunity" });
-    }
-  });
-
-  // Update an opportunity
-  app.patch("/api/opportunities/:id", async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid opportunity ID" });
-      }
-
-      // Partial validation - only validate the fields that are provided
-      const validatedData = insertOpportunitySchema.partial().parse(req.body);
+      // Hash the password before storing
+      const { password, ...userData } = req.body;
+      const hashedPassword = await bcrypt.hash(password, 10);
       
-      const updatedOpportunity = await storage.updateOpportunity(id, validatedData);
-      if (!updatedOpportunity) {
-        return res.status(404).json({ message: "Opportunity not found" });
-      }
-
-      res.json(updatedOpportunity);
+      const validatedData = insertUserSchema.parse({
+        ...userData,
+        password: hashedPassword,
+      });
+      
+      const user = await storage.createUser(validatedData);
+      
+      // Don't send the password back
+      const { password: _, ...userWithoutPassword } = user;
+      
+      res.status(201).json(userWithoutPassword);
     } catch (error) {
       if (error instanceof ZodError) {
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.message });
       }
-      console.error("Error updating opportunity:", error);
-      res.status(500).json({ message: "Failed to update opportunity" });
+      console.error("Error registering user:", error);
+      res.status(500).json({ message: "Failed to register user" });
     }
   });
 
-  // Delete an opportunity
-  app.delete("/api/opportunities/:id", async (req: Request, res: Response) => {
+  // Login user
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Don't send the password back
+      const { password: _, ...userWithoutPassword } = user;
+      
+      // In a real app, you would create a session or token here
+      res.status(200).json({
+        user: userWithoutPassword,
+        token: "mock-token-for-demo-purposes"
+      });
+    } catch (error) {
+      console.error("Error logging in:", error);
+      res.status(500).json({ message: "Failed to log in" });
+    }
+  });
+
+  // User profile
+  app.get("/api/users/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid opportunity ID" });
+        return res.status(400).json({ message: "Invalid user ID" });
       }
 
-      const deleted = await storage.deleteOpportunity(id);
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Don't send the password back
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error getting user:", error);
+      res.status(500).json({ message: "Failed to get user profile" });
+    }
+  });
+
+  // Update user profile
+  app.patch("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      // Don't allow updating passwords through this endpoint
+      const { password, ...updateData } = req.body;
+      
+      const validatedData = insertUserSchema.partial().parse(updateData);
+      
+      const updatedUser = await storage.updateUser(id, validatedData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Don't send the password back
+      const { password: _, ...userWithoutPassword } = updatedUser;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user profile" });
+    }
+  });
+
+  // Get all inventions
+  app.get("/api/inventions", async (req: Request, res: Response) => {
+    try {
+      const inventions = await storage.getInventions();
+      res.json(inventions);
+    } catch (error) {
+      console.error("Error getting inventions:", error);
+      res.status(500).json({ message: "Failed to get inventions" });
+    }
+  });
+
+  // Get inventions by category
+  app.get("/api/inventions/category/:category", async (req: Request, res: Response) => {
+    try {
+      const category = req.params.category;
+      const inventions = await storage.getInventionsByCategory(category);
+      res.json(inventions);
+    } catch (error) {
+      console.error("Error getting inventions by category:", error);
+      res.status(500).json({ message: "Failed to get inventions by category" });
+    }
+  });
+
+  // Get inventions by user
+  app.get("/api/users/:id/inventions", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const inventions = await storage.getInventionsByUser(userId);
+      res.json(inventions);
+    } catch (error) {
+      console.error("Error getting user inventions:", error);
+      res.status(500).json({ message: "Failed to get user inventions" });
+    }
+  });
+
+  // Get a specific invention
+  app.get("/api/inventions/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid invention ID" });
+      }
+
+      const invention = await storage.getInvention(id);
+      if (!invention) {
+        return res.status(404).json({ message: "Invention not found" });
+      }
+
+      res.json(invention);
+    } catch (error) {
+      console.error("Error getting invention:", error);
+      res.status(500).json({ message: "Failed to get invention" });
+    }
+  });
+
+  // Create a new invention
+  app.post("/api/inventions", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertInventionSchema.parse(req.body);
+      const invention = await storage.createInvention(validatedData);
+      res.status(201).json(invention);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      console.error("Error creating invention:", error);
+      res.status(500).json({ message: "Failed to create invention" });
+    }
+  });
+
+  // Update an invention
+  app.patch("/api/inventions/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid invention ID" });
+      }
+
+      const validatedData = insertInventionSchema.partial().parse(req.body);
+      
+      const updatedInvention = await storage.updateInvention(id, validatedData);
+      if (!updatedInvention) {
+        return res.status(404).json({ message: "Invention not found" });
+      }
+
+      res.json(updatedInvention);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      console.error("Error updating invention:", error);
+      res.status(500).json({ message: "Failed to update invention" });
+    }
+  });
+
+  // Delete an invention
+  app.delete("/api/inventions/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid invention ID" });
+      }
+
+      const deleted = await storage.deleteInvention(id);
       if (!deleted) {
-        return res.status(404).json({ message: "Opportunity not found" });
+        return res.status(404).json({ message: "Invention not found" });
       }
 
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting opportunity:", error);
-      res.status(500).json({ message: "Failed to delete opportunity" });
+      console.error("Error deleting invention:", error);
+      res.status(500).json({ message: "Failed to delete invention" });
     }
   });
 
-  // Get all pipeline stages
-  app.get("/api/pipeline-stages", async (req: Request, res: Response) => {
+  // Get investments for an invention
+  app.get("/api/inventions/:id/investments", async (req: Request, res: Response) => {
     try {
-      const stages = await storage.getPipelineStages();
-      res.json(stages);
+      const inventionId = parseInt(req.params.id);
+      if (isNaN(inventionId)) {
+        return res.status(400).json({ message: "Invalid invention ID" });
+      }
+
+      const investments = await storage.getInvestments(inventionId);
+      res.json(investments);
     } catch (error) {
-      console.error("Error getting pipeline stages:", error);
-      res.status(500).json({ message: "Failed to get pipeline stages" });
+      console.error("Error getting investments:", error);
+      res.status(500).json({ message: "Failed to get investments" });
     }
   });
 
-  // Create a new pipeline stage
-  app.post("/api/pipeline-stages", async (req: Request, res: Response) => {
+  // Get investments by user
+  app.get("/api/users/:id/investments", async (req: Request, res: Response) => {
     try {
-      const validatedData = insertPipelineStageSchema.parse(req.body);
-      const stage = await storage.createPipelineStage(validatedData);
-      res.status(201).json(stage);
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const investments = await storage.getUserInvestments(userId);
+      res.json(investments);
+    } catch (error) {
+      console.error("Error getting user investments:", error);
+      res.status(500).json({ message: "Failed to get user investments" });
+    }
+  });
+
+  // Create a new investment
+  app.post("/api/investments", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertInvestmentSchema.parse(req.body);
+      const investment = await storage.createInvestment(validatedData);
+      
+      // Update the invention's current funding
+      const invention = await storage.getInvention(investment.inventionId);
+      if (invention) {
+        const currentFunding = Number(invention.currentFunding || 0);
+        const newFunding = currentFunding + Number(investment.amount);
+        
+        // Cast to any to allow currentFunding property
+        await storage.updateInvention(invention.id, { 
+          currentFunding: newFunding.toString() 
+        } as any);
+      }
+      
+      res.status(201).json(investment);
     } catch (error) {
       if (error instanceof ZodError) {
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.message });
       }
-      console.error("Error creating pipeline stage:", error);
-      res.status(500).json({ message: "Failed to create pipeline stage" });
+      console.error("Error creating investment:", error);
+      res.status(500).json({ message: "Failed to create investment" });
     }
   });
 
-  // Update a pipeline stage
-  app.patch("/api/pipeline-stages/:id", async (req: Request, res: Response) => {
+  // Update investment status
+  app.patch("/api/investments/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid pipeline stage ID" });
+        return res.status(400).json({ message: "Invalid investment ID" });
       }
 
-      const validatedData = insertPipelineStageSchema.partial().parse(req.body);
+      const { status } = req.body;
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
       
-      const updatedStage = await storage.updatePipelineStage(id, validatedData);
-      if (!updatedStage) {
-        return res.status(404).json({ message: "Pipeline stage not found" });
+      const updatedInvestment = await storage.updateInvestmentStatus(id, status);
+      if (!updatedInvestment) {
+        return res.status(404).json({ message: "Investment not found" });
       }
 
-      res.json(updatedStage);
+      res.json(updatedInvestment);
+    } catch (error) {
+      console.error("Error updating investment status:", error);
+      res.status(500).json({ message: "Failed to update investment status" });
+    }
+  });
+
+  // Get AI feedback for an invention
+  app.get("/api/inventions/:id/ai-feedback", async (req: Request, res: Response) => {
+    try {
+      const inventionId = parseInt(req.params.id);
+      if (isNaN(inventionId)) {
+        return res.status(400).json({ message: "Invalid invention ID" });
+      }
+
+      const feedback = await storage.getAIFeedback(inventionId);
+      res.json(feedback);
+    } catch (error) {
+      console.error("Error getting AI feedback:", error);
+      res.status(500).json({ message: "Failed to get AI feedback" });
+    }
+  });
+
+  // Create AI feedback for an invention
+  app.post("/api/ai-feedback", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertAiFeedbackSchema.parse(req.body);
+      const feedback = await storage.createAIFeedback(validatedData);
+      res.status(201).json(feedback);
     } catch (error) {
       if (error instanceof ZodError) {
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.message });
       }
-      console.error("Error updating pipeline stage:", error);
-      res.status(500).json({ message: "Failed to update pipeline stage" });
+      console.error("Error creating AI feedback:", error);
+      res.status(500).json({ message: "Failed to create AI feedback" });
     }
   });
 
-  // Get revenue forecast
-  app.get("/api/revenue-forecast", async (req: Request, res: Response) => {
+  // Get updates for an invention
+  app.get("/api/inventions/:id/updates", async (req: Request, res: Response) => {
     try {
-      const forecast = await storage.getRevenueForecast();
-      res.json(forecast);
+      const inventionId = parseInt(req.params.id);
+      if (isNaN(inventionId)) {
+        return res.status(400).json({ message: "Invalid invention ID" });
+      }
+
+      const updates = await storage.getInventionUpdates(inventionId);
+      res.json(updates);
     } catch (error) {
-      console.error("Error getting revenue forecast:", error);
-      res.status(500).json({ message: "Failed to get revenue forecast" });
+      console.error("Error getting invention updates:", error);
+      res.status(500).json({ message: "Failed to get invention updates" });
     }
   });
 
-  // Update revenue forecast
-  app.patch("/api/revenue-forecast/:id", async (req: Request, res: Response) => {
+  // Create update for an invention
+  app.post("/api/invention-updates", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertInventionUpdateSchema.parse(req.body);
+      const update = await storage.createInventionUpdate(validatedData);
+      res.status(201).json(update);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      console.error("Error creating invention update:", error);
+      res.status(500).json({ message: "Failed to create invention update" });
+    }
+  });
+
+  // Get comments for an invention
+  app.get("/api/inventions/:id/comments", async (req: Request, res: Response) => {
+    try {
+      const inventionId = parseInt(req.params.id);
+      if (isNaN(inventionId)) {
+        return res.status(400).json({ message: "Invalid invention ID" });
+      }
+
+      const comments = await storage.getComments(inventionId);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error getting comments:", error);
+      res.status(500).json({ message: "Failed to get comments" });
+    }
+  });
+
+  // Create comment for an invention
+  app.post("/api/comments", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertCommentSchema.parse(req.body);
+      const comment = await storage.createComment(validatedData);
+      res.status(201).json(comment);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      console.error("Error creating comment:", error);
+      res.status(500).json({ message: "Failed to create comment" });
+    }
+  });
+
+  // Delete a comment
+  app.delete("/api/comments/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid forecast ID" });
+        return res.status(400).json({ message: "Invalid comment ID" });
       }
 
-      const validatedData = insertRevenueForecastSchema.partial().parse(req.body);
-      
-      const updatedForecast = await storage.updateRevenueForecast(id, validatedData);
-      if (!updatedForecast) {
-        return res.status(404).json({ message: "Forecast not found" });
+      const deleted = await storage.deleteComment(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Comment not found" });
       }
 
-      res.json(updatedForecast);
+      res.status(204).send();
     } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.message });
-      }
-      console.error("Error updating revenue forecast:", error);
-      res.status(500).json({ message: "Failed to update revenue forecast" });
+      console.error("Error deleting comment:", error);
+      res.status(500).json({ message: "Failed to delete comment" });
     }
   });
 
-  // Create new revenue forecast
-  app.post("/api/revenue-forecast", async (req: Request, res: Response) => {
+  // Get dashboard metrics
+  app.get("/api/dashboard-metrics", async (req: Request, res: Response) => {
     try {
-      const validatedData = insertRevenueForecastSchema.parse(req.body);
-      const forecast = await storage.createRevenueForecast(validatedData);
-      res.status(201).json(forecast);
+      const inventions = await storage.getInventions();
+      
+      // Calculate metrics
+      const totalInventions = inventions.length;
+      const completedInventions = inventions.filter(inv => inv.status === "completed").length;
+      const inProgressInventions = inventions.filter(inv => inv.status === "in-progress").length;
+      const prototypes = inventions.filter(inv => inv.status === "prototype").length;
+
+      // Total funding across all inventions
+      const totalFunding = inventions.reduce((sum, inv) => sum + Number(inv.currentFunding || 0), 0);
+      
+      // Calculate funding goal progress
+      const totalFundingGoals = inventions.reduce((sum, inv) => sum + Number(inv.fundingGoal || 0), 0);
+      const fundingProgress = totalFundingGoals > 0 ? Math.round((totalFunding / totalFundingGoals) * 100) : 0;
+      
+      const metrics = {
+        totalInventions,
+        completedInventions,
+        inProgressInventions,
+        prototypes,
+        totalFunding,
+        fundingProgress,
+        forSaleCount: inventions.filter(inv => inv.forSale).length
+      };
+      
+      res.json(metrics);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.message });
-      }
-      console.error("Error creating revenue forecast:", error);
-      res.status(500).json({ message: "Failed to create revenue forecast" });
+      console.error("Error getting dashboard metrics:", error);
+      res.status(500).json({ message: "Failed to get dashboard metrics" });
     }
   });
 
@@ -295,42 +575,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting API key:", error);
       res.status(500).json({ message: "Failed to delete API key" });
-    }
-  });
-
-  // Get dashboard metrics
-  app.get("/api/dashboard-metrics", async (req: Request, res: Response) => {
-    try {
-      const opportunities = await storage.getOpportunities();
-      const pipelineStages = await storage.getPipelineStages();
-      
-      // Calculate metrics
-      const pipelineValue = opportunities.reduce((sum, opp) => sum + Number(opp.value), 0);
-      const openOpportunities = opportunities.length;
-      
-      // Calculate win rate (assuming closing stage with >90% probability is a win)
-      const wonOpportunities = opportunities.filter(opp => opp.stage === "Closing" && opp.probability > 90).length;
-      const winRate = openOpportunities > 0 ? Math.round((wonOpportunities / openOpportunities) * 100) : 0;
-      
-      // Calculate average deal size
-      const avgDealSize = openOpportunities > 0 ? Math.round(pipelineValue / openOpportunities) : 0;
-      
-      // Monthly differences (mock data for now)
-      const metrics = {
-        pipelineValue,
-        pipelineValueChange: 12, // Percentage change from last month
-        openOpportunities,
-        openOpportunitiesChange: 5,
-        winRate,
-        winRateChange: -3,
-        avgDealSize,
-        avgDealSizeChange: 8
-      };
-      
-      res.json(metrics);
-    } catch (error) {
-      console.error("Error getting dashboard metrics:", error);
-      res.status(500).json({ message: "Failed to get dashboard metrics" });
     }
   });
 
