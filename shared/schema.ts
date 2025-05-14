@@ -13,6 +13,9 @@ export const users = pgTable("users", {
   avatar: text("avatar"),
   isInventor: boolean("is_inventor").notNull().default(false),
   isInvestor: boolean("is_investor").notNull().default(false),
+  subscriptionActive: boolean("subscription_active").default(false),
+  subscriptionEndDate: timestamp("subscription_end_date"),
+  trialUsed: boolean("trial_used").default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
