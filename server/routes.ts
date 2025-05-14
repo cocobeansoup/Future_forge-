@@ -799,6 +799,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to generate market analysis" });
     }
   });
+
+  // Generate AI chat response
+  app.post("/api/ai/chat", async (req: Request, res: Response) => {
+    try {
+      const { prompt, modelContext } = req.body;
+      
+      // Validate request
+      if (!prompt) {
+        return res.status(400).json({ 
+          message: "Please provide a prompt"
+        });
+      }
+      
+      // Import the OpenAI service
+      const { openaiService } = await import("./services/openai-service");
+      
+      // Generate chat response using OpenAI
+      const response = await openaiService.generateModelChatResponse(prompt, modelContext);
+      
+      res.json({
+        success: true,
+        message: "AI response generated successfully",
+        response
+      });
+    } catch (error) {
+      console.error("Error generating AI chat response:", error);
+      res.status(500).json({ message: "Failed to generate AI response" });
+    }
+  });
   
   // Platform fees routes
   app.get("/api/platform-fees", async (req: Request, res: Response) => {

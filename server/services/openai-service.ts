@@ -40,7 +40,13 @@ export class OpenAIService {
     try {
       const response = await openai.chat.completions.create({
         model: MODEL,
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          { 
+            role: "system", 
+            content: "You are an expert product developer and invention analyst with deep knowledge of various technologies, manufacturing processes, and market dynamics. Provide helpful, detailed, and actionable feedback."
+          },
+          { role: "user", content: prompt }
+        ],
         response_format: { type: "json_object" },
       });
 
@@ -77,7 +83,13 @@ export class OpenAIService {
     try {
       const response = await openai.chat.completions.create({
         model: MODEL,
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          { 
+            role: "system", 
+            content: "You are an expert 3D modeler and product designer with extensive knowledge of CAD software, materials, and manufacturing techniques. Provide detailed and practical modeling guidance."
+          },
+          { role: "user", content: prompt }
+        ],
         response_format: { type: "json_object" },
       });
 
@@ -122,7 +134,13 @@ export class OpenAIService {
     try {
       const response = await openai.chat.completions.create({
         model: MODEL,
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          { 
+            role: "system", 
+            content: "You are an expert market analyst with deep knowledge of global markets, consumer trends, competitive analysis, and go-to-market strategies. Provide comprehensive and realistic market analysis."
+          },
+          { role: "user", content: prompt }
+        ],
         response_format: { type: "json_object" },
       });
 
@@ -135,6 +153,52 @@ export class OpenAIService {
     } catch (error) {
       console.error("OpenAI error:", error);
       throw new Error("Failed to generate market analysis");
+    }
+  }
+  
+  /**
+   * Generate direct chat response for model assistance
+   */
+  async generateModelChatResponse(prompt: string, modelContext?: {
+    name?: string;
+    description?: string;
+    components?: any[];
+  }) {
+    try {
+      let fullPrompt = prompt;
+      
+      // Add model context if available
+      if (modelContext) {
+        fullPrompt = `
+        Context:
+        Model Name: ${modelContext.name || 'Unnamed model'}
+        Description: ${modelContext.description || 'No description provided'}
+        Components: ${modelContext.components ? JSON.stringify(modelContext.components) : 'No components specified'}
+        
+        User Question: ${prompt}
+        `;
+      }
+      
+      const response = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert 3D modeling and product design assistant. You provide helpful, concise advice about materials, manufacturing techniques, design approaches, and product development. Your responses are informative, practical, and accessible to non-experts."
+          },
+          {
+            role: "user",
+            content: fullPrompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 800
+      });
+
+      return response.choices[0].message.content || "No response generated. Please try again.";
+    } catch (error) {
+      console.error("Error generating AI chat response:", error);
+      throw new Error("Failed to generate chat response");
     }
   }
 }
