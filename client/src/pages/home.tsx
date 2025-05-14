@@ -34,13 +34,13 @@ export default function Home() {
         
         <div className="container mx-auto px-4 py-20 relative">
           <div className="max-w-3xl">
-            <h1 className="text-4xl md:text-6xl font-bold mb-4">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-purple-300">
+            <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-2">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-purple-300 to-blue-300 uppercase">
                 Future Forge
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 mb-8">
-              Where inventors meet investors to build the innovations of tomorrow
+            <p className="text-xl md:text-2xl text-blue-100 mb-8 font-light">
+              Innovation's Launchpad. Tomorrow's Technology, Today.
             </p>
             
             <div className="flex flex-wrap gap-4 mb-10">
@@ -52,7 +52,7 @@ export default function Home() {
               </Link>
               
               {!isAuthenticated && (
-                <Link href="/api/login">
+                <Link href="/signup">
                   <a className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors flex items-center font-medium">
                     Sign Up Free
                     <Rocket className="ml-2 h-5 w-5" />
@@ -211,7 +211,7 @@ export default function Home() {
           <div className="flex flex-wrap justify-center gap-4">
             {!isAuthenticated ? (
               <>
-                <Link href="/api/login">
+                <Link href="/signup">
                   <a className="px-8 py-3 bg-white text-blue-600 hover:bg-blue-50 rounded-md transition-colors font-medium">
                     Sign Up Now
                   </a>

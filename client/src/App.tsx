@@ -9,6 +9,7 @@ import AIAssistant from "./pages/ai-assistant";
 import ModelWorkspace from "./pages/model-workspace";
 import Profile from "./pages/profile";
 import Explore from "./pages/explore";
+import Signup from "./pages/signup";
 import { 
   Home as HomeIcon, 
   Search, 
@@ -142,6 +143,7 @@ function AppContent() {
           <Route path="/ai-assistant" component={AIAssistant} />
           <Route path="/model-workspace" component={ModelWorkspace} />
           <Route path="/profile" component={Profile} />
+          <Route path="/signup" component={Signup} />
         </Switch>
       </main>
       
