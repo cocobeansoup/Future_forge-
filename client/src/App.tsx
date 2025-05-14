@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import Home from "./pages/home";
 import AIAssistant from "./pages/ai-assistant";
+import ModelWorkspace from "./pages/model-workspace";
 
 export default function App() {
   return (
@@ -11,9 +12,10 @@ export default function App() {
         <header className="bg-blue-600 text-white">
           <div className="container mx-auto px-4 py-4 flex justify-between items-center">
             <div className="text-2xl font-bold">Future Forge</div>
-            <nav className="space-x-4">
+            <nav className="space-x-6">
               <a href="/" className="hover:text-blue-200">Home</a>
               <a href="/ai-assistant" className="hover:text-blue-200">AI Assistant</a>
+              <a href="/model-workspace" className="hover:text-blue-200">3D Workspace</a>
             </nav>
           </div>
         </header>
@@ -22,6 +24,7 @@ export default function App() {
           <Switch>
             <Route path="/" component={Home} />
             <Route path="/ai-assistant" component={AIAssistant} />
+            <Route path="/model-workspace" component={ModelWorkspace} />
           </Switch>
         </main>
         
