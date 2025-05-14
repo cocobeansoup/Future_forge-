@@ -32,6 +32,8 @@ export const inventions = pgTable("inventions", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   images: text("images").array(),
+  videos: text("videos").array(),
+  models3d: text("models_3d").array(), // URLs to 3D models
   category: text("category").notNull(),
   status: text("status").notNull(), // "in-progress", "completed", "prototype"
   fundingGoal: numeric("funding_goal"),
@@ -42,6 +44,11 @@ export const inventions = pgTable("inventions", {
   patentStatus: text("patent_status"), // "pending", "granted", "none"
   forSale: boolean("for_sale").default(false),
   salePrice: numeric("sale_price"),
+  inAuction: boolean("in_auction").default(false),
+  auctionEndDate: timestamp("auction_end_date"),
+  highestBid: numeric("highest_bid"),
+  viewCount: integer("view_count").default(0),
+  trendingScore: numeric("trending_score").default("0"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -129,6 +136,64 @@ export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
   createdAt: true,
 });
 
+// Auctions schema
+export const auctions = pgTable("auctions", {
+  id: serial("id").primaryKey(),
+  inventionId: integer("invention_id").notNull(),
+  startingPrice: numeric("starting_price").notNull(),
+  currentPrice: numeric("current_price"),
+  reservePrice: numeric("reserve_price"),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  endDate: timestamp("end_date").notNull(),
+  status: text("status").notNull().default("active"), // "active", "completed", "cancelled"
+  winnerId: integer("winner_id"),
+  platformFee: numeric("platform_fee"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAuctionSchema = createInsertSchema(auctions).omit({
+  id: true,
+  currentPrice: true,
+  winnerId: true,
+  platformFee: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Bids schema
+export const bids = pgTable("bids", {
+  id: serial("id").primaryKey(),
+  auctionId: integer("auction_id").notNull(),
+  bidderId: integer("bidder_id").notNull(),
+  amount: numeric("amount").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  isWinning: boolean("is_winning").default(false),
+});
+
+export const insertBidSchema = createInsertSchema(bids).omit({
+  id: true,
+  timestamp: true,
+  isWinning: true,
+});
+
+// Platform fees configuration
+export const platformFees = pgTable("platform_fees", {
+  id: serial("id").primaryKey(),
+  feeType: text("fee_type").notNull(), // "investment", "sale", "auction"
+  percentage: numeric("percentage").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertPlatformFeeSchema = createInsertSchema(platformFees).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -147,6 +212,15 @@ export type InsertInventionUpdate = z.infer<typeof insertInventionUpdateSchema>;
 
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
+
+export type Auction = typeof auctions.$inferSelect;
+export type InsertAuction = z.infer<typeof insertAuctionSchema>;
+
+export type Bid = typeof bids.$inferSelect;
+export type InsertBid = z.infer<typeof insertBidSchema>;
+
+export type PlatformFee = typeof platformFees.$inferSelect;
+export type InsertPlatformFee = z.infer<typeof insertPlatformFeeSchema>;
 
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
