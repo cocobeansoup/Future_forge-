@@ -1,567 +1,622 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute, Link } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-
-// Invention interface
-interface Invention {
-  id: number;
-  title: string;
-  description: string;
-  images: string[];
-  category: string;
-  status: string;
-  fundingGoal: string | null;
-  currentFunding: string | null;
-  inventorId: number;
-  patentStatus: string | null;
-  forSale: boolean;
-  salePrice: string | null;
-  createdAt: string;
-  updatedAt: string;
-  aiAssistance: boolean;
-  tags: string[];
-}
-
-// User interface
-interface User {
-  id: number;
-  username: string;
-  name: string;
-  bio: string | null;
-  avatar: string | null;
-  isInventor: boolean;
-  isInvestor: boolean;
-}
-
-// Investment interface
-interface Investment {
-  id: number;
-  inventionId: number;
-  investorId: number;
-  amount: string;
-  equityPercentage: string | null;
-  message: string | null;
-  status: string;
-  createdAt: string;
-}
-
-// Comment interface
-interface Comment {
-  id: number;
-  inventionId: number;
-  userId: number;
-  content: string;
-  createdAt: string;
-}
-
-// Update interface
-interface InventionUpdate {
-  id: number;
-  inventionId: number;
-  title: string;
-  content: string;
-  images: string[];
-  createdAt: string;
-}
+import React, { useState } from 'react';
+import { Link, useParams } from 'wouter';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Invention, Comment, Investment, AIFeedback } from '@shared/schema';
+import { 
+  ArrowLeft, 
+  Heart, 
+  Share2, 
+  DollarSign, 
+  MessageCircle, 
+  Eye, 
+  Calendar,
+  User,
+  Lightbulb,
+  TrendingUp,
+  Camera,
+  Video,
+  FileText,
+  Bot,
+  Star,
+  Target,
+  BarChart3
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 
 export default function InventionDetail() {
-  const [, params] = useRoute<{ id: string }>("/inventions/:id");
-  const inventionId = params?.id ? parseInt(params.id) : 0;
-  const { isAuthenticated, user } = useAuth();
+  const { id } = useParams();
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const [comment, setComment] = useState("");
-  const [investmentAmount, setInvestmentAmount] = useState("");
+  const queryClient = useQueryClient();
+  const [comment, setComment] = useState('');
+  const [investmentAmount, setInvestmentAmount] = useState('');
+  const [showInvestmentForm, setShowInvestmentForm] = useState(false);
 
   // Fetch invention details
-  const { data: invention, isLoading: isLoadingInvention } = useQuery<Invention>({
-    queryKey: [`/api/inventions/${inventionId}`],
-    enabled: !!inventionId,
+  const { data: invention, isLoading } = useQuery<Invention>({
+    queryKey: ['/api/inventions', id],
+    enabled: !!id,
   });
 
-  // Fetch inventor details
-  const { data: inventor } = useQuery<User>({
-    queryKey: [`/api/users/${invention?.inventorId}`],
-    enabled: !!invention?.inventorId,
-  });
-
-  // Fetch invention comments
-  const { data: comments, refetch: refetchComments } = useQuery<Comment[]>({
-    queryKey: [`/api/inventions/${inventionId}/comments`],
-    enabled: !!inventionId,
-  });
-
-  // Fetch invention updates
-  const { data: updates } = useQuery<InventionUpdate[]>({
-    queryKey: [`/api/inventions/${inventionId}/updates`],
-    enabled: !!inventionId,
+  // Fetch comments
+  const { data: comments = [] } = useQuery<Comment[]>({
+    queryKey: ['/api/inventions', id, 'comments'],
+    enabled: !!id,
   });
 
   // Fetch investments
-  const { data: investments } = useQuery<Investment[]>({
-    queryKey: [`/api/inventions/${inventionId}/investments`],
-    enabled: !!inventionId && isAuthenticated,
+  const { data: investments = [] } = useQuery<Investment[]>({
+    queryKey: ['/api/inventions', id, 'investments'],
+    enabled: !!id,
   });
 
-  // Post a comment mutation
-  const commentMutation = useMutation({
-    mutationFn: async (commentData: { inventionId: number; userId: number; content: string }) => {
-      const response = await fetch("/api/comments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(commentData),
+  // Fetch AI feedback
+  const { data: aiFeedback = [] } = useQuery<AIFeedback[]>({
+    queryKey: ['/api/inventions', id, 'ai-feedback'],
+    enabled: !!id,
+  });
+
+  // Create comment mutation
+  const createCommentMutation = useMutation({
+    mutationFn: async (content: string) => {
+      if (!user) throw new Error('Must be logged in to comment');
+      return apiRequest('POST', '/api/comments', {
+        inventionId: parseInt(id!),
+        userId: user.id,
+        content,
       });
-      
-      if (!response.ok) {
-        throw new Error("Failed to post comment");
-      }
-      
-      return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/inventions', id, 'comments'] });
+      setComment('');
       toast({
         title: "Comment posted",
-        description: "Your comment has been posted successfully",
+        description: "Your comment has been added successfully.",
       });
-      setComment("");
-      refetchComments();
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: "Failed to post comment",
+        title: "Error posting comment",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  // Make an investment mutation
-  const investMutation = useMutation({
-    mutationFn: async (investmentData: { inventionId: number; investorId: number; amount: string }) => {
-      const response = await fetch("/api/investments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(investmentData),
+  // Create investment mutation
+  const createInvestmentMutation = useMutation({
+    mutationFn: async (amount: string) => {
+      if (!user) throw new Error('Must be logged in to invest');
+      return apiRequest('POST', '/api/investments', {
+        inventionId: parseInt(id!),
+        investorId: user.id,
+        amount: parseFloat(amount),
+        message: `Investment of $${amount}`,
       });
-      
-      if (!response.ok) {
-        throw new Error("Failed to make investment");
-      }
-      
-      return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/inventions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/inventions', id, 'investments'] });
+      setInvestmentAmount('');
+      setShowInvestmentForm(false);
       toast({
-        title: "Investment made",
-        description: "Your investment has been processed successfully",
+        title: "Investment successful",
+        description: "Your investment has been processed.",
       });
-      setInvestmentAmount("");
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: "Failed to process investment",
+        title: "Investment failed",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  // Handle comment submission
-  const handleCommentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isAuthenticated || !user || !comment.trim()) {
-      return;
-    }
-    
-    commentMutation.mutate({
-      inventionId,
-      userId: user.id,
-      content: comment.trim(),
-    });
-  };
-
-  // Handle investment submission
-  const handleInvestmentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isAuthenticated || !user || !investmentAmount.trim()) {
-      return;
-    }
-    
-    const amount = parseFloat(investmentAmount);
-    if (isNaN(amount) || amount <= 0) {
+  // Generate AI feedback mutation
+  const generateAIFeedbackMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/ai-feedback', {
+        inventionId: parseInt(id!)
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/inventions', id, 'ai-feedback'] });
       toast({
-        title: "Invalid amount",
-        description: "Please enter a valid investment amount",
+        title: "AI Feedback generated",
+        description: "New AI analysis has been added to this invention.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "AI Feedback failed",
+        description: error.message,
         variant: "destructive",
       });
-      return;
-    }
-    
-    investMutation.mutate({
-      inventionId,
-      investorId: user.id,
-      amount: amount.toString(),
-    });
-  };
+    },
+  });
 
-  // Check if the current user is the inventor
-  const isInventor = user && invention && user.id === invention.inventorId;
-
-  // Check if the user has already invested
-  const hasInvested = user && investments?.some(inv => inv.investorId === user.id);
-
-  if (isLoadingInvention) {
+  if (isLoading) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
       </div>
     );
   }
 
   if (!invention) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <h1 className="text-2xl font-bold mb-4">Invention not found</h1>
-        <Button asChild>
-          <Link href="/inventions">Back to Inventions</Link>
-        </Button>
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Invention not found</h1>
+          <Link href="/explore">
+            <a className="text-blue-600 hover:text-blue-800">← Back to explore</a>
+          </Link>
+        </div>
       </div>
     );
   }
 
+  const fundingPercentage = invention.fundingGoal 
+    ? (Number(invention.currentFunding || 0) / Number(invention.fundingGoal)) * 100 
+    : 0;
+
   return (
-    <div className="space-y-8">
-      {/* Breadcrumbs */}
-      <div className="flex text-sm text-gray-500">
-        <Link href="/inventions" className="hover:text-blue-600">
-          Inventions
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="font-medium text-gray-900">{invention.title}</span>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Invention header */}
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <Badge variant="outline">{invention.category}</Badge>
-              <Badge
-                variant={
-                  invention.status === "completed" ? "default" :
-                  invention.status === "in-progress" ? "secondary" : "outline"
-                }
-              >
-                {invention.status.charAt(0).toUpperCase() + invention.status.slice(1)}
-              </Badge>
-              {invention.patentStatus && (
-                <Badge variant="outline">{invention.patentStatus}</Badge>
-              )}
-              {invention.forSale && (
-                <Badge className="bg-green-100 text-green-800">For Sale</Badge>
-              )}
-            </div>
-            <h1 className="text-3xl font-bold">{invention.title}</h1>
-            <div className="flex items-center mt-2 text-sm text-gray-500">
-              <span>Created by {inventor?.name || "Unknown"}</span>
-              <span className="mx-2">•</span>
-              <span>{new Date(invention.createdAt).toLocaleDateString()}</span>
-            </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <Link href="/explore">
+            <a className="flex items-center text-blue-600 hover:text-blue-800 transition-colors">
+              <ArrowLeft className="h-5 w-5 mr-2" />
+              Back to Explore
+            </a>
+          </Link>
+          
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm">
+              <Heart className="h-4 w-4 mr-2" />
+              Save
+            </Button>
+            <Button variant="outline" size="sm">
+              <Share2 className="h-4 w-4 mr-2" />
+              Share
+            </Button>
           </div>
+        </div>
 
-          {/* Invention images */}
-          <div className="rounded-lg overflow-hidden bg-gray-100">
-            {invention.images && invention.images.length > 0 ? (
-              <img
-                src={invention.images[0]}
-                alt={invention.title}
-                className="w-full h-64 object-cover"
-              />
-            ) : (
-              <div className="w-full h-64 flex items-center justify-center bg-gray-200">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-            )}
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2">
+            {/* Hero Section */}
+            <Card className="mb-6">
+              <CardContent className="p-0">
+                <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 flex items-center justify-center rounded-t-lg">
+                  {invention.images && invention.images.length > 0 ? (
+                    <img
+                      src={invention.images[0]}
+                      alt={invention.title}
+                      className="w-full h-full object-cover rounded-t-lg"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center text-gray-400">
+                      <Lightbulb className="h-24 w-24 mb-4" />
+                      <p>No image available</p>
+                    </div>
+                  )}
+                </div>
+                <div className="p-6">
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <Badge variant="secondary">{invention.category}</Badge>
+                    <Badge variant={invention.status === 'completed' ? 'default' : 'outline'}>
+                      {invention.status}
+                    </Badge>
+                    {invention.aiAssistance && (
+                      <Badge variant="outline" className="text-purple-600 border-purple-600">
+                        <Bot className="h-3 w-3 mr-1" />
+                        AI Enhanced
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <h1 className="text-3xl font-bold mb-2 dark:text-white">{invention.title}</h1>
+                  
+                  <div className="flex items-center text-gray-600 dark:text-gray-400 mb-4">
+                    <User className="h-4 w-4 mr-2" />
+                    <span>Inventor #{invention.inventorId}</span>
+                    <span className="mx-2">•</span>
+                    <Eye className="h-4 w-4 mr-1" />
+                    <span>{invention.viewCount || 0} views</span>
+                    <span className="mx-2">•</span>
+                    <Calendar className="h-4 w-4 mr-1" />
+                    <span>{new Date(invention.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Invention tabs */}
-          <Tabs defaultValue="details" className="w-full">
-            <TabsList>
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="updates">Updates</TabsTrigger>
-              <TabsTrigger value="comments">Comments</TabsTrigger>
-              {invention.aiAssistance && (
-                <TabsTrigger value="ai-feedback">AI Feedback</TabsTrigger>
-              )}
-            </TabsList>
-            
-            {/* Details tab */}
-            <TabsContent value="details">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="prose max-w-none">
-                    <p>{invention.description}</p>
+            {/* Tabbed Content */}
+            <Tabs defaultValue="description" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="description">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Description
+                </TabsTrigger>
+                <TabsTrigger value="gallery">
+                  <Camera className="h-4 w-4 mr-2" />
+                  Gallery
+                </TabsTrigger>
+                <TabsTrigger value="ai-analysis">
+                  <Bot className="h-4 w-4 mr-2" />
+                  AI Analysis
+                </TabsTrigger>
+                <TabsTrigger value="updates">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Updates
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="description" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>About This Invention</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                      {invention.description}
+                    </p>
                     
                     {invention.tags && invention.tags.length > 0 && (
-                      <div className="mt-4">
-                        <h3 className="text-md font-medium">Tags:</h3>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {invention.tags.map((tag, i) => (
-                            <Badge key={i} variant="outline">{tag}</Badge>
+                      <div className="mt-6">
+                        <h4 className="font-semibold mb-2">Tags</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {invention.tags.map((tag, index) => (
+                            <Badge key={index} variant="outline">
+                              {tag}
+                            </Badge>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {invention.patentStatus && (
+                      <div className="mt-6">
+                        <h4 className="font-semibold mb-2">Patent Status</h4>
+                        <Badge variant={invention.patentStatus === 'granted' ? 'default' : 'outline'}>
+                          {invention.patentStatus}
+                        </Badge>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="gallery" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Media Gallery</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {invention.images && invention.images.length > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                        {invention.images.map((image, index) => (
+                          <div key={index} className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                            <img
+                              src={image}
+                              alt={`${invention.title} - Image ${index + 1}`}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <Camera className="h-12 w-12 mx-auto mb-4" />
+                        <p>No images available for this invention</p>
+                      </div>
+                    )}
+
+                    {invention.videos && invention.videos.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold mb-4">Videos</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {invention.videos.map((video, index) => (
+                            <div key={index} className="aspect-video bg-black rounded-lg overflow-hidden">
+                              <video
+                                src={video}
+                                controls
+                                className="w-full h-full"
+                                poster="/api/placeholder/400/225"
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {(!invention.images || invention.images.length === 0) && 
+                     (!invention.videos || invention.videos.length === 0) && (
+                      <div className="text-center py-12 text-gray-500">
+                        <Video className="h-16 w-16 mx-auto mb-4" />
+                        <p>No media available for this invention</p>
+                        <p className="text-sm">Media uploads help build trust with potential investors</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="ai-analysis" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">AI-Powered Analysis</h3>
+                  <Button 
+                    onClick={() => generateAIFeedbackMutation.mutate()}
+                    disabled={generateAIFeedbackMutation.isPending}
+                    size="sm"
+                  >
+                    <Bot className="h-4 w-4 mr-2" />
+                    {generateAIFeedbackMutation.isPending ? 'Analyzing...' : 'Generate New Analysis'}
+                  </Button>
+                </div>
+
+                {aiFeedback.length > 0 ? (
+                  <div className="space-y-4">
+                    {aiFeedback.map((feedback, index) => (
+                      <Card key={feedback.id || index}>
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center">
+                              <Bot className="h-5 w-5 mr-2 text-purple-600" />
+                              AI Analysis #{aiFeedback.length - index}
+                            </CardTitle>
+                            <span className="text-sm text-gray-500">
+                              {new Date(feedback.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <h4 className="font-semibold mb-2 flex items-center">
+                              <Target className="h-4 w-4 mr-2" />
+                              Overall Feedback
+                            </h4>
+                            <p className="text-gray-700 dark:text-gray-300">{feedback.feedback}</p>
+                          </div>
+
+                          {feedback.suggestedImprovements && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center">
+                                <Star className="h-4 w-4 mr-2" />
+                                Suggested Improvements
+                              </h4>
+                              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                                <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                  {typeof feedback.suggestedImprovements === 'string' 
+                                    ? feedback.suggestedImprovements 
+                                    : JSON.stringify(feedback.suggestedImprovements, null, 2)}
+                                </pre>
+                              </div>
+                            </div>
+                          )}
+
+                          {feedback.marketAnalysis && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center">
+                                <BarChart3 className="h-4 w-4 mr-2" />
+                                Market Analysis
+                              </h4>
+                              <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                                <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                  {typeof feedback.marketAnalysis === 'string' 
+                                    ? feedback.marketAnalysis 
+                                    : JSON.stringify(feedback.marketAnalysis, null, 2)}
+                                </pre>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <Bot className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                      <h4 className="font-semibold mb-2">No AI Analysis Yet</h4>
+                      <p className="text-gray-600 dark:text-gray-400 mb-4">
+                        Get AI-powered feedback on your invention's design, market potential, and suggested improvements.
+                      </p>
+                      <Button 
+                        onClick={() => generateAIFeedbackMutation.mutate()}
+                        disabled={generateAIFeedbackMutation.isPending}
+                      >
+                        <Bot className="h-4 w-4 mr-2" />
+                        {generateAIFeedbackMutation.isPending ? 'Analyzing...' : 'Generate AI Analysis'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="updates" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Project Updates</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-12 text-gray-500">
+                      <Calendar className="h-16 w-16 mx-auto mb-4" />
+                      <p>No updates available yet</p>
+                      <p className="text-sm">Updates from the inventor will appear here</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Funding Card */}
+            {invention.fundingGoal && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <DollarSign className="h-5 w-5 mr-2" />
+                    Funding Progress
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span>Raised</span>
+                        <span>{fundingPercentage.toFixed(1)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(fundingPercentage, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <div>
+                        <p className="text-2xl font-bold text-green-600">
+                          ${Number(invention.currentFunding || 0).toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">raised</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-semibold">
+                          ${Number(invention.fundingGoal).toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">goal</p>
+                      </div>
+                    </div>
+
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        {investments.length} investor{investments.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+
+                    {isAuthenticated && user?.isInvestor && (
+                      <div className="space-y-3">
+                        {!showInvestmentForm ? (
+                          <Button 
+                            onClick={() => setShowInvestmentForm(true)}
+                            className="w-full"
+                          >
+                            <DollarSign className="h-4 w-4 mr-2" />
+                            Invest Now
+                          </Button>
+                        ) : (
+                          <div className="space-y-3">
+                            <Input
+                              type="number"
+                              placeholder="Investment amount ($)"
+                              value={investmentAmount}
+                              onChange={(e) => setInvestmentAmount(e.target.value)}
+                            />
+                            <div className="flex space-x-2">
+                              <Button 
+                                onClick={() => createInvestmentMutation.mutate(investmentAmount)}
+                                disabled={!investmentAmount || createInvestmentMutation.isPending}
+                                className="flex-1"
+                              >
+                                {createInvestmentMutation.isPending ? 'Processing...' : 'Confirm'}
+                              </Button>
+                              <Button 
+                                variant="outline"
+                                onClick={() => {
+                                  setShowInvestmentForm(false);
+                                  setInvestmentAmount('');
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-            
-            {/* Updates tab */}
-            <TabsContent value="updates">
-              <Card>
-                <CardContent className="pt-6">
-                  {updates && updates.length > 0 ? (
-                    <div className="space-y-6">
-                      {updates.map((update) => (
-                        <div key={update.id} className="pb-6 border-b last:border-0">
-                          <h3 className="text-lg font-medium mb-1">{update.title}</h3>
-                          <div className="text-sm text-gray-500 mb-3">
-                            {new Date(update.createdAt).toLocaleDateString()}
-                          </div>
-                          <p>{update.content}</p>
-                          
-                          {update.images && update.images.length > 0 && (
-                            <div className="mt-4 grid grid-cols-2 gap-2">
-                              {update.images.map((img, i) => (
-                                <img
-                                  key={i}
-                                  src={img}
-                                  alt={`Update ${i+1}`}
-                                  className="rounded-md h-40 object-cover"
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center py-6 text-gray-500">
-                      No updates available yet.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            {/* Comments tab */}
-            <TabsContent value="comments">
-              <Card>
-                <CardContent className="pt-6">
-                  {/* Comment form */}
-                  {isAuthenticated ? (
-                    <form onSubmit={handleCommentSubmit} className="mb-6">
-                      <Textarea
-                        placeholder="Add a comment..."
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        className="mb-2"
-                      />
-                      <Button type="submit" disabled={commentMutation.isPending}>
-                        {commentMutation.isPending ? "Posting..." : "Post Comment"}
-                      </Button>
-                    </form>
-                  ) : (
-                    <div className="mb-6 p-4 bg-gray-50 rounded-md text-center">
-                      <p className="text-gray-600 mb-2">You need to be logged in to comment</p>
-                      <Button asChild>
-                        <Link href="/login">Log In</Link>
-                      </Button>
-                    </div>
-                  )}
-                  
-                  {/* Comments list */}
-                  {comments && comments.length > 0 ? (
-                    <div className="space-y-4">
-                      {comments.map((comment) => (
-                        <div key={comment.id} className="pb-4 border-b last:border-0">
-                          <div className="flex items-center mb-2">
-                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
-                              <span className="text-xs font-bold">
-                                {comment.userId.toString().charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                            <div>
-                              <div className="font-medium">User {comment.userId}</div>
-                              <div className="text-xs text-gray-500">
-                                {new Date(comment.createdAt).toLocaleDateString()}
-                              </div>
-                            </div>
-                          </div>
-                          <p className="text-gray-700">{comment.content}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center py-4 text-gray-500">
-                      No comments yet. Be the first to comment!
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            {/* AI Feedback tab */}
-            {invention.aiAssistance && (
-              <TabsContent value="ai-feedback">
-                <Card>
-                  <CardContent className="pt-6">
-                    <p className="text-center py-6 text-gray-500">
-                      AI feedback will appear here when available.
-                    </p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
             )}
-          </Tabs>
-        </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Funding card */}
-          {invention.fundingGoal && (
+            {/* Comments Section */}
             <Card>
               <CardHeader>
-                <CardTitle>Funding Progress</CardTitle>
+                <CardTitle className="flex items-center">
+                  <MessageCircle className="h-5 w-5 mr-2" />
+                  Comments ({comments.length})
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="mb-4">
-                  <div className="flex justify-between font-medium">
-                    <span>${invention.currentFunding || "0"}</span>
-                    <span>of ${invention.fundingGoal}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                    <div
-                      className="bg-blue-600 h-2.5 rounded-full"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          Number(invention.currentFunding || 0) / Number(invention.fundingGoal) * 100
-                        )}%`,
-                      }}
-                    ></div>
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    {Math.round(
-                      Number(invention.currentFunding || 0) / Number(invention.fundingGoal) * 100
-                    )}% funded
-                  </div>
-                </div>
-
-                {/* Investment form */}
-                {isAuthenticated && user?.isInvestor && !isInventor && !hasInvested && (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button className="w-full">Invest Now</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Invest in {invention.title}</DialogTitle>
-                      </DialogHeader>
-                      <form onSubmit={handleInvestmentSubmit} className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                          <label htmlFor="amount" className="text-sm font-medium">
-                            Investment Amount ($)
-                          </label>
-                          <Input
-                            id="amount"
-                            type="number"
-                            min="1"
-                            step="0.01"
-                            placeholder="Enter amount"
-                            value={investmentAmount}
-                            onChange={(e) => setInvestmentAmount(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <Button type="submit" className="w-full" disabled={investMutation.isPending}>
-                          {investMutation.isPending ? "Processing..." : "Confirm Investment"}
-                        </Button>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                )}
-
-                {hasInvested && (
-                  <div className="bg-green-50 text-green-700 p-3 rounded-md text-center">
-                    You've already invested in this invention
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* For sale card */}
-          {invention.forSale && invention.salePrice && (
-            <Card>
-              <CardHeader>
-                <CardTitle>For Sale</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold mb-2">${invention.salePrice}</div>
-                <Button className="w-full">Contact Seller</Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Inventor card */}
-          {inventor && (
-            <Card>
-              <CardHeader>
-                <CardTitle>About the Inventor</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center mb-4">
-                  {inventor.avatar ? (
-                    <img
-                      src={inventor.avatar}
-                      alt={inventor.name}
-                      className="w-12 h-12 rounded-full mr-3"
+                {isAuthenticated && (
+                  <div className="space-y-3 mb-6">
+                    <Textarea
+                      placeholder="Share your thoughts on this invention..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      rows={3}
                     />
+                    <Button 
+                      onClick={() => createCommentMutation.mutate(comment)}
+                      disabled={!comment.trim() || createCommentMutation.isPending}
+                      size="sm"
+                    >
+                      {createCommentMutation.isPending ? 'Posting...' : 'Post Comment'}
+                    </Button>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {comments.length > 0 ? (
+                    comments.map((comment) => (
+                      <div key={comment.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-4 last:pb-0">
+                        <div className="flex items-center mb-2">
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                            U{comment.userId}
+                          </div>
+                          <div className="ml-3">
+                            <p className="font-semibold text-sm">User #{comment.userId}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(comment.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-gray-700 dark:text-gray-300 text-sm ml-11">
+                          {comment.content}
+                        </p>
+                      </div>
+                    ))
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                      <span className="text-lg font-bold">
-                        {inventor.name.charAt(0).toUpperCase()}
-                      </span>
+                    <div className="text-center py-6 text-gray-500">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-2" />
+                      <p>No comments yet</p>
+                      <p className="text-sm">Be the first to share your thoughts!</p>
                     </div>
                   )}
-                  <div>
-                    <div className="font-medium">{inventor.name}</div>
-                    <div className="text-sm text-gray-500">@{inventor.username}</div>
-                  </div>
                 </div>
-                {inventor.bio && <p className="text-gray-600">{inventor.bio}</p>}
               </CardContent>
             </Card>
-          )}
+          </div>
         </div>
       </div>
     </div>

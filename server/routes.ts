@@ -397,7 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: invention.title,
         description: invention.description,
         category: invention.category,
-        tags: invention.tags ? invention.tags.split(",").map(tag => tag.trim()) : undefined
+        tags: invention.tags || []
       });
       
       // Save the feedback to the database

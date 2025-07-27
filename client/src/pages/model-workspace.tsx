@@ -58,7 +58,7 @@ export default function ModelWorkspace() {
           
           // Convert the model shapes to our format
           if (modelData.shapes && Array.isArray(modelData.shapes)) {
-            const convertedShapes = modelData.shapes.map((shape, index) => ({
+            const convertedShapes = modelData.shapes.map((shape: any, index: number) => ({
               id: index + 1,
               type: shape.type,
               x: shape.x,
@@ -157,7 +157,7 @@ export default function ModelWorkspace() {
     }
     
     // Draw shapes (simplified 2D representation of 3D objects)
-    shapes.forEach((shape, index) => {
+    shapes.forEach((shape: any, index: number) => {
       ctx.save();
       ctx.translate(shape.x, shape.y);
       
