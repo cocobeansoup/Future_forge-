@@ -134,8 +134,6 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(inventions)
-      .orderBy(inventions.trendingScore)
-      .orderBy(inventions.viewCount)
       .limit(limit);
   }
 
