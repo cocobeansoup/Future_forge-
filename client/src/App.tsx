@@ -11,6 +11,7 @@ import Profile from "./pages/profile";
 import Explore from "./pages/explore";
 import Signup from "./pages/signup";
 import InventionDetail from "./pages/invention-detail";
+import Referrals from "./pages/referrals";
 import { 
   Home as HomeIcon, 
   Search, 
@@ -145,6 +146,7 @@ function AppContent() {
           <Route path="/ai-assistant" component={AIAssistant} />
           <Route path="/model-workspace" component={ModelWorkspace} />
           <Route path="/profile" component={Profile} />
+          <Route path="/referrals" component={Referrals} />
           <Route path="/signup" component={Signup} />
         </Switch>
       </main>

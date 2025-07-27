@@ -4,6 +4,8 @@
 
 Future Forge is a comprehensive platform that connects inventors with investors, featuring AI-assisted invention development, 3D modeling capabilities, and marketplace functionality. The application is built as a full-stack TypeScript application with a React frontend and Express backend, utilizing PostgreSQL for data persistence.
 
+**Latest Update (January 27, 2025):** Added high-impact security, growth, and engagement features including verified inventor badges, two-factor authentication, referral system with viral sharing, achievement gamification, and featured invention spotlight system.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -53,6 +55,25 @@ Preferred communication style: Simple, everyday language.
 - **Market Analysis**: Target market and competitive landscape insights
 - **3D Model Suggestions**: AI-generated recommendations for 3D modeling
 - **Technical Improvements**: Suggestions for design and manufacturing
+
+### Security & Trust Features
+- **Verified Inventor System**: Manual verification workflow with document review
+- **File Upload Sanitization**: Virus scanning and metadata stripping for security
+- **Two-Factor Authentication**: SMS/email verification for enhanced account protection
+- **Security Badge System**: Visual indicators of active security measures
+- **Privacy Controls**: Granular control over invention and profile visibility
+
+### Growth & Virality Features  
+- **Referral Program**: Shareable links with bonus tier system (+7 to +14 days free)
+- **Social Media Integration**: One-click sharing to Twitter and LinkedIn
+- **Viral Growth Mechanics**: Friend invitation rewards and referral tracking
+- **Featured Spotlight System**: Weekly highlighted inventions on homepage
+
+### Engagement & Gamification
+- **Achievement Badge System**: 8 milestone achievements for inventors and investors
+- **Progress Tracking**: Visual progress bars for achievement completion
+- **Gamified Onboarding**: Achievement unlocks for first creation, investments, etc.
+- **Community Recognition**: Featured invention carousel and trending displays
 
 ## Data Flow
 
