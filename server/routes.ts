@@ -16,14 +16,143 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  const httpServer = createServer(app);
+  // Test API endpoint
+  app.get("/api/test", (req: Request, res: Response) => {
+    res.json({ 
+      message: "Future Forge API is working!", 
+      timestamp: new Date().toISOString(),
+      features: ["AI Feedback", "3D Modeling", "Investment System", "Achievement Badges"]
+    });
+  });
+
+  // Health check
+  app.get("/api/health", async (req: Request, res: Response) => {
+    try {
+      // Quick database test
+      const inventionCount = await storage.getInventions().then(inventions => inventions.length);
+      res.json({ 
+        status: "healthy", 
+        database: "connected",
+        inventions: inventionCount,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: "unhealthy", 
+        error: "Database connection failed",
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
 
   // Register new user
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      // Hash the password before storing
-      const { password, ...userData } = req.body;
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const userData = req.body;
+      
+      if (!userData.username || !userData.password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(409).json({ message: "Username already exists" });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      
+      // Set subscription data based on user type
+      let subscriptionData = {};
+      if (userData.isInventor) {
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 7); // 7-day trial
+        
+        subscriptionData = {
+          subscriptionActive: true,
+          subscriptionEndDate: trialEndDate,
+          trialUsed: true
+        };
+      }
+      
+      const validatedData = insertUserSchema.parse({
+        ...userData,
+        ...subscriptionData,
+        password: hashedPassword,
+      });
+      
+      const user = await storage.createUser(validatedData);
+      
+      // Don't send the password back
+      const { password: _, ...userWithoutPassword } = user;
+      
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      console.error("Error registering user:", error);
+      res.status(500).json({ message: "Failed to register user" });
+    }
+  });
+
+  // Login user
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Don't send the password back
+      const { password: _, ...userWithoutPassword } = user;
+      
+      // In a real app, you would create a session or token here
+      res.status(200).json({
+        user: userWithoutPassword,
+        token: "mock-token-for-demo-purposes"
+      });
+    } catch (error) {
+      console.error("Error logging in:", error);
+      res.status(500).json({ message: "Failed to log in" });
+    }
+  });
+
+  // User profile
+  app.get("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const user = await storage.getUser(id);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't send password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
       
       // Handle inventor trial period - if user is an inventor, give them a 7-day trial
       let subscriptionData = {};

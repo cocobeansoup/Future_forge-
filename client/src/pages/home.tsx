@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { TrendingUp, Lightbulb, Users, ArrowRight, Rocket, Layers, Zap } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Invention } from '@shared/schema';
+import FeaturedSpotlight from '@/components/FeaturedSpotlight';
+import AchievementBadges from '@/components/AchievementBadges';
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -42,6 +44,50 @@ export default function Home() {
             <p className="text-xl md:text-2xl text-blue-100 mb-8 font-light">
               Innovation's Launchpad. Tomorrow's Technology, Today.
             </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 mb-12">
+              {!isAuthenticated ? (
+                <>
+                  <Link href="/signup">
+                    <a className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 hover:shadow-lg hover:scale-105 text-center">
+                      Start Creating
+                    </a>
+                  </Link>
+                  <button
+                    onClick={() => setShowVideo(true)}
+                    className="border-2 border-blue-300 text-blue-100 hover:bg-blue-600/20 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:shadow-lg"
+                  >
+                    Watch Demo
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-6">
+                  <Link href="/create">
+                    <a className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 hover:shadow-lg hover:scale-105">
+                      Create Invention
+                    </a>
+                  </Link>
+                  <div className="text-blue-100">
+                    <p className="text-sm opacity-90">Welcome back,</p>
+                    <p className="font-semibold">{user?.name || user?.username}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Achievement Badges for logged in users */}
+            {isAuthenticated && user && (
+              <div className="mb-8">
+                <AchievementBadges
+                  userId={user.id}
+                  inventions={0} // TODO: Get from API
+                  investments={0} // TODO: Get from API
+                  views={0} // TODO: Get from API
+                  funding={0} // TODO: Get from API
+                  compact={true}
+                />
+              </div>
+            )}
             
             <div className="flex flex-wrap gap-4 mb-10">
               <Link href="/explore">
@@ -86,80 +132,46 @@ export default function Home() {
         </div>
       </section>
       
-      {/* Trending Inventions Section */}
-      <section className="py-16 bg-gray-50 dark:bg-gray-900">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center mb-10">
-            <TrendingUp className="text-red-500 mr-3 h-6 w-6" />
-            <h2 className="text-2xl md:text-3xl font-bold dark:text-white">Trending Inventions</h2>
-          </div>
-          
-          {isLoading ? (
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      {/* Featured Spotlight */}
+      {trendingInventions && trendingInventions.length > 0 && (
+        <FeaturedSpotlight 
+          inventions={trendingInventions} 
+          title="Featured Inventions"
+          subtitle="Discover the most innovative projects this week"
+        />
+      )}
+      
+      {/* Trending Inventions Fallback */}
+      {(!trendingInventions || trendingInventions.length === 0) && (
+        <section className="py-16 bg-gray-50 dark:bg-gray-900">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-center mb-10">
+              <TrendingUp className="text-red-500 mr-3 h-6 w-6" />
+              <h2 className="text-2xl md:text-3xl font-bold dark:text-white">Featured Inventions</h2>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {trendingInventions && trendingInventions.length > 0 ? (
-                trendingInventions.map((invention) => (
-                  <div key={invention.id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                    <div className="h-48 bg-gray-300 relative">
-                      {invention.images && invention.images.length > 0 ? (
-                        <img
-                          src={invention.images[0]}
-                          alt={invention.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900">
-                          <Lightbulb className="h-16 w-16 text-gray-400" />
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
-                        <TrendingUp size={12} className="mr-1" />
-                        Trending
-                      </div>
-                    </div>
-                    
-                    <div className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-lg font-semibold dark:text-white">{invention.title}</h3>
-                        <span className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs px-2 py-1 rounded">
-                          {invention.category}
-                        </span>
-                      </div>
-                      <p className="text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{invention.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          Funding: ${Number(invention.currentFunding || 0).toLocaleString()} / ${Number(invention.fundingGoal || 0).toLocaleString()}
-                        </span>
-                        <Link href={`/inventions/${invention.id}`}>
-                          <a className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium">
-                            View Details →
-                          </a>
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="col-span-3 bg-white dark:bg-gray-800 p-8 rounded-lg text-center">
-                  <p className="text-gray-600 dark:text-gray-400">No trending inventions available.</p>
-                </div>
-              )}
-            </div>
-          )}
-          
-          <div className="mt-8 text-center">
-            <Link href="/explore">
-              <a className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors">
-                View All Inventions
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </a>
-            </Link>
+            
+            {isLoading ? (
+              <div className="flex justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-gray-800 p-12 rounded-lg text-center">
+                <Lightbulb className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-xl font-semibold mb-2 dark:text-white">No inventions yet</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  Be the first to share your innovative ideas on Future Forge!
+                </p>
+                <Link href="/create">
+                  <a className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors">
+                    Create First Invention
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </a>
+                </Link>
+              </div>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
       
       {/* How It Works Section */}
       <section className="py-16 bg-white dark:bg-gray-950">
