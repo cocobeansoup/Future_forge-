@@ -134,8 +134,8 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(inventions)
-      .orderBy(inventions.trendingScore, "desc")
-      .orderBy(inventions.viewCount, "desc")
+      .orderBy(inventions.trendingScore)
+      .orderBy(inventions.viewCount)
       .limit(limit);
   }
 
@@ -241,7 +241,7 @@ export class DatabaseStorage implements IStorage {
   async updateInvestmentStatus(id: number, status: string): Promise<Investment | undefined> {
     const [updatedInvestment] = await db
       .update(investments)
-      .set({ status, updatedAt: new Date() })
+      .set({ status })
       .where(eq(investments.id, id))
       .returning();
     return updatedInvestment;
@@ -334,11 +334,17 @@ export class DatabaseStorage implements IStorage {
 
   // Auction methods
   async getAuctions(status?: string): Promise<Auction[]> {
-    let query = db.select().from(auctions);
     if (status) {
-      query = query.where(eq(auctions.status, status));
+      return await db
+        .select()
+        .from(auctions)
+        .where(eq(auctions.status, status))
+        .orderBy(auctions.endDate);
     }
-    return await query.orderBy(auctions.endDate);
+    return await db
+      .select()
+      .from(auctions)
+      .orderBy(auctions.endDate);
   }
 
   async getAuctionsByInvention(inventionId: number): Promise<Auction[]> {
@@ -389,7 +395,7 @@ export class DatabaseStorage implements IStorage {
   async updateAuction(id: number, data: Partial<Auction>): Promise<Auction | undefined> {
     const [auction] = await db
       .update(auctions)
-      .set({ ...data, updatedAt: new Date() })
+      .set(data)
       .where(eq(auctions.id, id))
       .returning();
     return auction;
@@ -400,8 +406,7 @@ export class DatabaseStorage implements IStorage {
       .update(auctions)
       .set({ 
         status: "completed", 
-        winnerId, 
-        updatedAt: new Date() 
+        winnerId 
       })
       .where(eq(auctions.id, id))
       .returning();
@@ -422,8 +427,7 @@ export class DatabaseStorage implements IStorage {
         await db
           .update(bids)
           .set({ isWinning: true })
-          .where(eq(bids.auctionId, id))
-          .where(eq(bids.bidderId, winnerId));
+          .where(eq(bids.auctionId, id));
       }
     }
       
@@ -436,7 +440,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(bids)
       .where(eq(bids.auctionId, auctionId))
-      .orderBy(bids.amount, "desc");
+      .orderBy(bids.amount);
   }
 
   async getUserBids(userId: number): Promise<Bid[]> {
@@ -444,7 +448,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(bids)
       .where(eq(bids.bidderId, userId))
-      .orderBy(bids.timestamp, "desc");
+      .orderBy(bids.timestamp);
   }
 
   async createBid(insertBid: InsertBid): Promise<Bid> {
@@ -479,14 +483,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getHighestBid(auctionId: number): Promise<Bid | undefined> {
-    const bids = await db
+    const bidResults = await db
       .select()
       .from(bids)
       .where(eq(bids.auctionId, auctionId))
-      .orderBy(bids.amount, "desc")
+      .orderBy(bids.amount)
       .limit(1);
       
-    return bids[0];
+    return bidResults[0];
   }
 
   // Platform Fee methods
@@ -494,8 +498,7 @@ export class DatabaseStorage implements IStorage {
     const [fee] = await db
       .select()
       .from(platformFees)
-      .where(eq(platformFees.feeType, feeType))
-      .where(eq(platformFees.isActive, true));
+      .where(eq(platformFees.feeType, feeType));
     return fee;
   }
 

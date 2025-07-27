@@ -10,6 +10,7 @@ import ModelWorkspace from "./pages/model-workspace";
 import Profile from "./pages/profile";
 import Explore from "./pages/explore";
 import Signup from "./pages/signup";
+import InventionDetail from "./pages/invention-detail";
 import { 
   Home as HomeIcon, 
   Search, 
@@ -140,6 +141,7 @@ function AppContent() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/explore" component={Explore} />
+          <Route path="/inventions/:id" component={InventionDetail} />
           <Route path="/ai-assistant" component={AIAssistant} />
           <Route path="/model-workspace" component={ModelWorkspace} />
           <Route path="/profile" component={Profile} />
