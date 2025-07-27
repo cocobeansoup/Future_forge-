@@ -153,97 +153,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
-      
-      // Handle inventor trial period - if user is an inventor, give them a 7-day trial
-      let subscriptionData = {};
-      if (userData.isInventor) {
-        const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + 7); // 7-day trial
-        
-        subscriptionData = {
-          subscriptionActive: true,
-          subscriptionEndDate: trialEndDate,
-          trialUsed: true
-        };
-      }
-      
-      const validatedData = insertUserSchema.parse({
-        ...userData,
-        ...subscriptionData,
-        password: hashedPassword,
-      });
-      
-      const user = await storage.createUser(validatedData);
-      
-      // Don't send the password back
-      const { password: _, ...userWithoutPassword } = user;
-      
-      res.status(201).json(userWithoutPassword);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.message });
-      }
-      console.error("Error registering user:", error);
-      res.status(500).json({ message: "Failed to register user" });
-    }
-  });
-
-  // Login user
-  app.post("/api/auth/login", async (req: Request, res: Response) => {
-    try {
-      const { username, password } = req.body;
-      
-      if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required" });
-      }
-      
-      const user = await storage.getUserByUsername(username);
-      
-      if (!user) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-      
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      
-      if (!isPasswordValid) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-      
-      // Don't send the password back
-      const { password: _, ...userWithoutPassword } = user;
-      
-      // In a real app, you would create a session or token here
-      res.status(200).json({
-        user: userWithoutPassword,
-        token: "mock-token-for-demo-purposes"
-      });
-    } catch (error) {
-      console.error("Error logging in:", error);
-      res.status(500).json({ message: "Failed to log in" });
-    }
-  });
-
-  // User profile
-  app.get("/api/users/:id", async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-
-      const user = await storage.getUser(id);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Don't send the password back
-      const { password, ...userWithoutPassword } = user;
-      
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Error getting user:", error);
-      res.status(500).json({ message: "Failed to get user profile" });
     }
   });
 
@@ -1204,5 +1113,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  const httpServer = createServer(app);
   return httpServer;
 }
