@@ -4,7 +4,7 @@
 
 Future Forge is a comprehensive platform that connects inventors with investors, featuring AI-assisted invention development, 3D modeling capabilities, and marketplace functionality. The application is built as a full-stack TypeScript application with a React frontend and Express backend, utilizing PostgreSQL for data persistence.
 
-**Latest Update (January 27, 2025):** Added high-impact security, growth, and engagement features including verified inventor badges, two-factor authentication, referral system with viral sharing, achievement gamification, and featured invention spotlight system.
+**Latest Update (January 28, 2025):** Fixed security vulnerability CVE-2025-30208 by upgrading Vite from 5.4.14 to 5.4.19. Previous update (January 27, 2025): Added high-impact security, growth, and engagement features including verified inventor badges, two-factor authentication, referral system with viral sharing, achievement gamification, and featured invention spotlight system.
 
 ## User Preferences
 
